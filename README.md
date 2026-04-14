@@ -186,7 +186,6 @@ golden:          7 tests  (compiled == interpreted, all examples)
 - [IR Specification](docs/ir-spec.md) — Node types, type system, effects, JSON format
 - [Agent API](docs/agent-api.md) — Full HTTP API specification with request/response examples
 - [Evaluation Rubric](docs/evaluation-rubric.md) — Success criteria for each stage
-- [Design Discussion](docs/discussion.md) — Initial design exploration for AI-native languages
 
 ## License
 
