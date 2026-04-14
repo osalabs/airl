@@ -1,0 +1,35 @@
+[workspace]
+members = [
+    "crates/airl-ir",
+    "crates/airl-typecheck",
+    "crates/airl-interp",
+    "crates/airl-compile",
+    "crates/airl-patch",
+    "crates/airl-project",
+    "crates/airl-cli",
+    "crates/airl-api",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+sha2 = "0.10"
+clap = { version = "4", features = ["derive"] }
+axum = { version = "0.7", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+
+# Internal crates
+airl-ir = { path = "crates/airl-ir" }
+airl-typecheck = { path = "crates/airl-typecheck" }
+airl-interp = { path = "crates/airl-interp" }
+airl-compile = { path = "crates/airl-compile" }
+airl-patch = { path = "crates/airl-patch" }
+airl-project = { path = "crates/airl-project" }
+airl-api = { path = "crates/airl-api" }

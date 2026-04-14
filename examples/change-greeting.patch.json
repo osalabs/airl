@@ -1,0 +1,18 @@
+{
+  "id": "patch_001",
+  "parent_version": "",
+  "operations": [
+    {
+      "kind": "ReplaceNode",
+      "target": "n_101",
+      "replacement": {
+        "id": "n_101",
+        "kind": "Literal",
+        "type": "String",
+        "value": "hello from a patch!"
+      }
+    }
+  ],
+  "rationale": "Change the greeting message via semantic patch",
+  "author": "test-agent"
+}
