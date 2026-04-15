@@ -218,7 +218,7 @@ fn cmd_project(file: &PathBuf, lang: &str) {
     let graph = load_ir(file);
     typecheck_or_exit(&graph);
 
-    if let Some(language) = airl_project::projection::Language::from_str(lang) {
+    if let Some(language) = airl_project::projection::Language::parse(lang) {
         let text = airl_project::projection::project_module(graph.module(), language);
         print!("{text}");
     } else {
