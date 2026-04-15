@@ -792,6 +792,45 @@ impl<'a> Interpreter<'a> {
                 _ => Value::Unit,
             },
 
+            // String pattern matching (basic, no regex dep)
+            "std::string::index_of" => match (args.first(), args.get(1)) {
+                (Some(Value::Str(s)), Some(Value::Str(sub))) => {
+                    Value::Integer(s.find(sub.as_str()).map(|i| i as i64).unwrap_or(-1))
+                }
+                _ => Value::Integer(-1),
+            },
+            "std::string::substring" => match (args.first(), args.get(1), args.get(2)) {
+                (Some(Value::Str(s)), Some(Value::Integer(start)), Some(Value::Integer(end))) => {
+                    let start = (*start).max(0) as usize;
+                    let end = (*end).min(s.len() as i64) as usize;
+                    if start <= end && end <= s.len() {
+                        Value::Str(s[start..end].to_string())
+                    } else {
+                        Value::Str(String::new())
+                    }
+                }
+                _ => Value::Str(String::new()),
+            },
+            "std::string::chars" => match args.first() {
+                Some(Value::Str(s)) => {
+                    Value::Array(s.chars().map(|c| Value::Str(c.to_string())).collect())
+                }
+                _ => Value::Array(vec![]),
+            },
+            "std::string::repeat" => match (args.first(), args.get(1)) {
+                (Some(Value::Str(s)), Some(Value::Integer(n))) => {
+                    Value::Str(s.repeat((*n).max(0) as usize))
+                }
+                _ => Value::Str(String::new()),
+            },
+            "std::string::parse_int" => match args.first() {
+                Some(Value::Str(s)) => match s.trim().parse::<i64>() {
+                    Ok(n) => Value::Integer(n),
+                    Err(_) => Value::Unit,
+                },
+                _ => Value::Unit,
+            },
+
             // Time
             "std::time::now_ms" => {
                 let ms = std::time::SystemTime::now()

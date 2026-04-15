@@ -560,6 +560,48 @@ impl TypeChecker {
             },
         );
 
+        // Extended string operations
+        b.insert(
+            "std::string::index_of".into(),
+            FuncSig {
+                params: vec![Type::String, Type::String],
+                returns: Type::I64,
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::string::substring".into(),
+            FuncSig {
+                params: vec![Type::String, Type::I64, Type::I64],
+                returns: Type::String,
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::string::chars".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::Array { element: Box::new(Type::String) },
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::string::repeat".into(),
+            FuncSig {
+                params: vec![Type::String, Type::I64],
+                returns: Type::String,
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::string::parse_int".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::I64,
+                effects: vec![Effect::Pure],
+            },
+        );
+
         // Time
         b.insert(
             "std::time::now_ms".into(),

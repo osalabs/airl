@@ -40,6 +40,13 @@ pub fn project_module(module: &Module, lang: Language) -> String {
 // ---------------------------------------------------------------------------
 
 fn project_module_ts(module: &Module, out: &mut String) {
+    // Module metadata header
+    let meta = &module.module.metadata;
+    if !meta.description.is_empty() {
+        out.push_str(&format!("// {}\n", meta.description));
+    }
+    out.push_str(&format!("// Module: {} v{}\n\n", module.module.name, meta.version));
+
     // Imports
     for import in &module.module.imports {
         let items = import.items.join(", ");
@@ -67,6 +74,12 @@ fn project_func_ts(func: &FuncDef, out: &mut String, indent: usize) {
         .map(|p| format!("{}: {}", p.name, type_to_ts(&p.param_type)))
         .collect();
     let ret = type_to_ts(&func.returns);
+
+    // Effect annotation as JSDoc
+    if !func.effects.is_empty() && !func.is_pure() {
+        let effects: Vec<String> = func.effects.iter().map(|e| e.to_effect_str()).collect();
+        out.push_str(&format!("{pad}/** @effects {{{}}} */\n", effects.join(", ")));
+    }
 
     out.push_str(&format!(
         "{pad}function {}({}): {} {{\n",
@@ -416,6 +429,14 @@ fn type_to_ts(ty: &Type) -> String {
 // ---------------------------------------------------------------------------
 
 fn project_module_py(module: &Module, out: &mut String) {
+    // Module docstring
+    let meta = &module.module.metadata;
+    if !meta.description.is_empty() {
+        out.push_str(&format!("\"\"\"{}\"\"\"", meta.description));
+        out.push('\n');
+    }
+    out.push_str(&format!("# Module: {} v{}\n\n", module.module.name, meta.version));
+
     // Imports
     for import in &module.module.imports {
         let items = import.items.join(", ");
