@@ -149,6 +149,128 @@ extern "C" fn airl_math_pow(base: i64, exp: i64) -> i64 {
     base.wrapping_pow(exp as u32)
 }
 
+// --- Extended string runtime functions ---
+
+extern "C" fn airl_str_to_uppercase(handle: i64) -> i64 {
+    let mut lock = JIT_STRINGS.lock().unwrap();
+    if let Some(table) = lock.as_mut() {
+        let s = table.get(handle as usize).cloned().unwrap_or_default();
+        let idx = table.len();
+        table.push(s.to_uppercase());
+        idx as i64
+    } else { 0 }
+}
+
+extern "C" fn airl_str_to_lowercase(handle: i64) -> i64 {
+    let mut lock = JIT_STRINGS.lock().unwrap();
+    if let Some(table) = lock.as_mut() {
+        let s = table.get(handle as usize).cloned().unwrap_or_default();
+        let idx = table.len();
+        table.push(s.to_lowercase());
+        idx as i64
+    } else { 0 }
+}
+
+extern "C" fn airl_str_trim(handle: i64) -> i64 {
+    let mut lock = JIT_STRINGS.lock().unwrap();
+    if let Some(table) = lock.as_mut() {
+        let s = table.get(handle as usize).cloned().unwrap_or_default();
+        let idx = table.len();
+        table.push(s.trim().to_string());
+        idx as i64
+    } else { 0 }
+}
+
+extern "C" fn airl_str_replace(haystack: i64, from: i64, to: i64) -> i64 {
+    let mut lock = JIT_STRINGS.lock().unwrap();
+    if let Some(table) = lock.as_mut() {
+        let h = table.get(haystack as usize).cloned().unwrap_or_default();
+        let f = table.get(from as usize).cloned().unwrap_or_default();
+        let t = table.get(to as usize).cloned().unwrap_or_default();
+        let idx = table.len();
+        table.push(h.replace(&f, &t));
+        idx as i64
+    } else { 0 }
+}
+
+extern "C" fn airl_str_starts_with(haystack: i64, prefix: i64) -> i64 {
+    let lock = JIT_STRINGS.lock().unwrap();
+    if let Some(table) = lock.as_ref() {
+        let h = table.get(haystack as usize).map(|s| s.as_str()).unwrap_or("");
+        let p = table.get(prefix as usize).map(|s| s.as_str()).unwrap_or("");
+        if h.starts_with(p) { 1 } else { 0 }
+    } else { 0 }
+}
+
+extern "C" fn airl_str_ends_with(haystack: i64, suffix: i64) -> i64 {
+    let lock = JIT_STRINGS.lock().unwrap();
+    if let Some(table) = lock.as_ref() {
+        let h = table.get(haystack as usize).map(|s| s.as_str()).unwrap_or("");
+        let s = table.get(suffix as usize).map(|s| s.as_str()).unwrap_or("");
+        if h.ends_with(s) { 1 } else { 0 }
+    } else { 0 }
+}
+
+/// format(template_handle, arg1, arg2, ...) — variadic via repeated calls
+/// For JIT, we support format(template, arg) where arg replaces first "{}"
+extern "C" fn airl_fmt_format(template: i64, arg: i64) -> i64 {
+    let mut lock = JIT_STRINGS.lock().unwrap();
+    if let Some(table) = lock.as_mut() {
+        let tmpl = table.get(template as usize).cloned().unwrap_or_default();
+        let a = table.get(arg as usize).cloned().unwrap_or_else(|| arg.to_string());
+        let result = if let Some(pos) = tmpl.find("{}") {
+            let mut r = tmpl.clone();
+            r.replace_range(pos..pos + 2, &a);
+            r
+        } else {
+            tmpl
+        };
+        let idx = table.len();
+        table.push(result);
+        idx as i64
+    } else { 0 }
+}
+
+// --- Array runtime functions (operate on serialized arrays via string handles) ---
+// Arrays in JIT are represented as comma-separated strings in the string table.
+// This is a pragmatic approach for getting basic array operations working.
+
+extern "C" fn airl_array_range(start: i64, end: i64) -> i64 {
+    let mut lock = JIT_STRINGS.lock().unwrap();
+    if let Some(table) = lock.as_mut() {
+        let items: Vec<String> = (start..end).map(|i| i.to_string()).collect();
+        let idx = table.len();
+        table.push(items.join(", "));
+        idx as i64
+    } else { 0 }
+}
+
+extern "C" fn airl_array_join(arr_handle: i64, sep_handle: i64) -> i64 {
+    let mut lock = JIT_STRINGS.lock().unwrap();
+    if let Some(table) = lock.as_mut() {
+        let arr = table.get(arr_handle as usize).cloned().unwrap_or_default();
+        let sep = table.get(sep_handle as usize).cloned().unwrap_or_default();
+        // Array is stored as "1, 2, 3" — re-join with custom separator
+        let items: Vec<&str> = arr.split(", ").collect();
+        let result = items.join(&sep);
+        let idx = table.len();
+        table.push(result);
+        idx as i64
+    } else { 0 }
+}
+
+extern "C" fn airl_array_reverse(arr_handle: i64) -> i64 {
+    let mut lock = JIT_STRINGS.lock().unwrap();
+    if let Some(table) = lock.as_mut() {
+        let arr = table.get(arr_handle as usize).cloned().unwrap_or_default();
+        let mut items: Vec<&str> = arr.split(", ").collect();
+        items.reverse();
+        let idx = table.len();
+        table.push(items.join(", "));
+        idx as i64
+    } else { 0 }
+}
+
 // ---------------------------------------------------------------------------
 // JIT compilation entry point
 // ---------------------------------------------------------------------------
@@ -182,6 +304,16 @@ pub fn jit_compile_and_run(module: &Module) -> Result<String, CompileError> {
     jit_builder.symbol("airl_math_max", airl_math_max as *const u8);
     jit_builder.symbol("airl_math_min", airl_math_min as *const u8);
     jit_builder.symbol("airl_math_pow", airl_math_pow as *const u8);
+    jit_builder.symbol("airl_str_to_uppercase", airl_str_to_uppercase as *const u8);
+    jit_builder.symbol("airl_str_to_lowercase", airl_str_to_lowercase as *const u8);
+    jit_builder.symbol("airl_str_trim", airl_str_trim as *const u8);
+    jit_builder.symbol("airl_str_replace", airl_str_replace as *const u8);
+    jit_builder.symbol("airl_str_starts_with", airl_str_starts_with as *const u8);
+    jit_builder.symbol("airl_str_ends_with", airl_str_ends_with as *const u8);
+    jit_builder.symbol("airl_fmt_format", airl_fmt_format as *const u8);
+    jit_builder.symbol("airl_array_range", airl_array_range as *const u8);
+    jit_builder.symbol("airl_array_join", airl_array_join as *const u8);
+    jit_builder.symbol("airl_array_reverse", airl_array_reverse as *const u8);
 
     let mut jit_module = JITModule::new(jit_builder);
 
@@ -318,6 +450,16 @@ struct JitCompiler<'a> {
     math_max_id: FuncId,
     math_min_id: FuncId,
     math_pow_id: FuncId,
+    str_to_uppercase_id: FuncId,
+    str_to_lowercase_id: FuncId,
+    str_trim_id: FuncId,
+    str_replace_id: FuncId,
+    str_starts_with_id: FuncId,
+    str_ends_with_id: FuncId,
+    fmt_format_id: FuncId,
+    array_range_id: FuncId,
+    array_join_id: FuncId,
+    array_reverse_id: FuncId,
     var_counter: u32,
 }
 
@@ -352,6 +494,16 @@ impl<'a> JitCompiler<'a> {
         let math_max_id = decl_rt!("airl_math_max", [cl_types::I64, cl_types::I64], [cl_types::I64]);
         let math_min_id = decl_rt!("airl_math_min", [cl_types::I64, cl_types::I64], [cl_types::I64]);
         let math_pow_id = decl_rt!("airl_math_pow", [cl_types::I64, cl_types::I64], [cl_types::I64]);
+        let str_to_uppercase_id = decl_rt!("airl_str_to_uppercase", [cl_types::I64], [cl_types::I64]);
+        let str_to_lowercase_id = decl_rt!("airl_str_to_lowercase", [cl_types::I64], [cl_types::I64]);
+        let str_trim_id = decl_rt!("airl_str_trim", [cl_types::I64], [cl_types::I64]);
+        let str_replace_id = decl_rt!("airl_str_replace", [cl_types::I64, cl_types::I64, cl_types::I64], [cl_types::I64]);
+        let str_starts_with_id = decl_rt!("airl_str_starts_with", [cl_types::I64, cl_types::I64], [cl_types::I64]);
+        let str_ends_with_id = decl_rt!("airl_str_ends_with", [cl_types::I64, cl_types::I64], [cl_types::I64]);
+        let fmt_format_id = decl_rt!("airl_fmt_format", [cl_types::I64, cl_types::I64], [cl_types::I64]);
+        let array_range_id = decl_rt!("airl_array_range", [cl_types::I64, cl_types::I64], [cl_types::I64]);
+        let array_join_id = decl_rt!("airl_array_join", [cl_types::I64, cl_types::I64], [cl_types::I64]);
+        let array_reverse_id = decl_rt!("airl_array_reverse", [cl_types::I64], [cl_types::I64]);
 
         Ok(Self {
             jit_module,
@@ -370,6 +522,16 @@ impl<'a> JitCompiler<'a> {
             math_max_id,
             math_min_id,
             math_pow_id,
+            str_to_uppercase_id,
+            str_to_lowercase_id,
+            str_trim_id,
+            str_replace_id,
+            str_starts_with_id,
+            str_ends_with_id,
+            fmt_format_id,
+            array_range_id,
+            array_join_id,
+            array_reverse_id,
             var_counter: 0,
         })
     }
@@ -753,6 +915,80 @@ impl<'a> JitCompiler<'a> {
                 let b = self.lower_node(&args[1], builder, var_map)?;
                 let id = self.str_contains_id;
                 Ok(self.call_runtime(id, &[a, b], builder, true))
+            }
+
+            // --- Extended string builtins ---
+            "std::string::to_uppercase" => {
+                let a = self.lower_node(&args[0], builder, var_map)?;
+                let id = self.str_to_uppercase_id;
+                Ok(self.call_runtime(id, &[a], builder, true))
+            }
+            "std::string::to_lowercase" => {
+                let a = self.lower_node(&args[0], builder, var_map)?;
+                let id = self.str_to_lowercase_id;
+                Ok(self.call_runtime(id, &[a], builder, true))
+            }
+            "std::string::trim" => {
+                let a = self.lower_node(&args[0], builder, var_map)?;
+                let id = self.str_trim_id;
+                Ok(self.call_runtime(id, &[a], builder, true))
+            }
+            "std::string::replace" => {
+                let a = self.lower_node(&args[0], builder, var_map)?;
+                let b = self.lower_node(&args[1], builder, var_map)?;
+                let c = self.lower_node(&args[2], builder, var_map)?;
+                let id = self.str_replace_id;
+                Ok(self.call_runtime(id, &[a, b, c], builder, true))
+            }
+            "std::string::starts_with" => {
+                let a = self.lower_node(&args[0], builder, var_map)?;
+                let b = self.lower_node(&args[1], builder, var_map)?;
+                let id = self.str_starts_with_id;
+                Ok(self.call_runtime(id, &[a, b], builder, true))
+            }
+            "std::string::ends_with" => {
+                let a = self.lower_node(&args[0], builder, var_map)?;
+                let b = self.lower_node(&args[1], builder, var_map)?;
+                let id = self.str_ends_with_id;
+                Ok(self.call_runtime(id, &[a, b], builder, true))
+            }
+
+            // --- Formatting ---
+            "std::fmt::format" => {
+                // format(template, arg) — fold multiple args by chaining
+                let mut result = self.lower_node(&args[0], builder, var_map)?;
+                for arg in &args[1..] {
+                    let arg_val = self.lower_node(arg, builder, var_map)?;
+                    // Convert non-string args to string handles
+                    let arg_handle = if is_string_typed(arg) {
+                        arg_val
+                    } else {
+                        let id = self.str_from_i64_id;
+                        self.call_runtime(id, &[arg_val], builder, true)
+                    };
+                    let id = self.fmt_format_id;
+                    result = self.call_runtime(id, &[result, arg_handle], builder, true);
+                }
+                Ok(result)
+            }
+
+            // --- Array builtins ---
+            "std::array::range" => {
+                let a = self.lower_node(&args[0], builder, var_map)?;
+                let b = self.lower_node(&args[1], builder, var_map)?;
+                let id = self.array_range_id;
+                Ok(self.call_runtime(id, &[a, b], builder, true))
+            }
+            "std::array::join" => {
+                let a = self.lower_node(&args[0], builder, var_map)?;
+                let b = self.lower_node(&args[1], builder, var_map)?;
+                let id = self.array_join_id;
+                Ok(self.call_runtime(id, &[a, b], builder, true))
+            }
+            "std::array::reverse" => {
+                let a = self.lower_node(&args[0], builder, var_map)?;
+                let id = self.array_reverse_id;
+                Ok(self.call_runtime(id, &[a], builder, true))
             }
 
             // --- Math builtins ---

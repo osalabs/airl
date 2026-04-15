@@ -30,6 +30,7 @@ dependencies = [
  "airl-interp",
  "airl-ir",
  "airl-patch",
+ "airl-project",
  "airl-typecheck",
  "clap",
  "serde_json",

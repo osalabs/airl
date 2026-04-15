@@ -47,6 +47,16 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+    /// Project module to TypeScript or Python
+    Project {
+        /// Path to the .airl.json file
+        file: PathBuf,
+        /// Target language: typescript, python
+        #[arg(long, default_value = "typescript")]
+        lang: String,
+    },
+    /// Interactive REPL: paste JSON IR, get results
+    Repl,
     /// Start the HTTP API server
     Api {
         #[command(subcommand)]
@@ -89,6 +99,8 @@ async fn main() {
             patch_file,
             output,
         } => cmd_patch(&module_file, &patch_file, output.as_deref()),
+        Commands::Project { file, lang } => cmd_project(&file, &lang),
+        Commands::Repl => cmd_repl(),
         Commands::Api { action } => match action {
             ApiAction::Serve { port } => {
                 airl_api::serve(port).await;
@@ -182,6 +194,159 @@ fn cmd_compile(file: &PathBuf) {
             process::exit(1);
         }
     }
+}
+
+fn cmd_project(file: &PathBuf, lang: &str) {
+    let graph = load_ir(file);
+    typecheck_or_exit(&graph);
+
+    if let Some(language) = airl_project::projection::Language::from_str(lang) {
+        let text = airl_project::projection::project_module(graph.module(), language);
+        print!("{text}");
+    } else {
+        eprintln!("error: unknown language '{lang}' (supported: typescript, python)");
+        process::exit(1);
+    }
+}
+
+fn cmd_repl() {
+    use std::io::{self, BufRead, Write};
+
+    eprintln!("AIRL REPL — paste a complete .airl.json module, then press Ctrl+D (Unix) or Ctrl+Z (Windows)");
+    eprintln!("Commands: :quit, :check, :compile, :typescript, :python");
+    eprintln!();
+
+    let stdin = io::stdin();
+    let mut current_module: Option<airl_ir::Module> = None;
+    let mut buffer = String::new();
+    let mut collecting = false;
+
+    print!("> ");
+    io::stdout().flush().ok();
+
+    for line in stdin.lock().lines() {
+        let line = match line {
+            Ok(l) => l,
+            Err(_) => break,
+        };
+
+        let trimmed = line.trim();
+
+        // Commands
+        if trimmed == ":quit" || trimmed == ":q" {
+            break;
+        }
+
+        if trimmed == ":check" {
+            if let Some(ref module) = current_module {
+                let result = airl_typecheck::typecheck(module);
+                if result.is_ok() {
+                    println!("OK — {} function(s)", module.functions().len());
+                } else {
+                    for e in &result.errors {
+                        println!("  error: {}", e.message);
+                    }
+                }
+            } else {
+                println!("no module loaded");
+            }
+            print!("> ");
+            io::stdout().flush().ok();
+            continue;
+        }
+
+        if trimmed == ":compile" {
+            if let Some(ref module) = current_module {
+                match airl_compile::compile_and_run(module) {
+                    Ok(out) => print!("{}", out.stdout),
+                    Err(e) => println!("compile error: {e}"),
+                }
+            } else {
+                println!("no module loaded");
+            }
+            print!("> ");
+            io::stdout().flush().ok();
+            continue;
+        }
+
+        if trimmed == ":typescript" || trimmed == ":ts" {
+            if let Some(ref module) = current_module {
+                let text = airl_project::projection::project_module(
+                    module,
+                    airl_project::projection::Language::TypeScript,
+                );
+                print!("{text}");
+            } else {
+                println!("no module loaded");
+            }
+            print!("> ");
+            io::stdout().flush().ok();
+            continue;
+        }
+
+        if trimmed == ":python" || trimmed == ":py" {
+            if let Some(ref module) = current_module {
+                let text = airl_project::projection::project_module(
+                    module,
+                    airl_project::projection::Language::Python,
+                );
+                print!("{text}");
+            } else {
+                println!("no module loaded");
+            }
+            print!("> ");
+            io::stdout().flush().ok();
+            continue;
+        }
+
+        // JSON collection
+        if trimmed.starts_with('{') || collecting {
+            collecting = true;
+            buffer.push_str(&line);
+            buffer.push('\n');
+
+            // Try to parse
+            if let Ok(module) = serde_json::from_str::<airl_ir::Module>(&buffer) {
+                collecting = false;
+
+                // Type check
+                let tc = airl_typecheck::typecheck(&module);
+                if !tc.is_ok() {
+                    for e in &tc.errors {
+                        println!("  type error: {}", e.message);
+                    }
+                } else {
+                    // Interpret
+                    match airl_interp::interpret(&module) {
+                        Ok(output) => {
+                            if !output.stdout.is_empty() {
+                                print!("{}", output.stdout);
+                            }
+                            println!("OK — {} function(s)", module.functions().len());
+                        }
+                        Err(e) => println!("runtime error: {e}"),
+                    }
+                }
+
+                current_module = Some(module);
+                buffer.clear();
+            }
+            // else keep collecting more lines
+
+            if !collecting {
+                print!("> ");
+                io::stdout().flush().ok();
+            }
+            continue;
+        }
+
+        if !trimmed.is_empty() {
+            println!("unknown command: {trimmed}");
+        }
+        print!("> ");
+        io::stdout().flush().ok();
+    }
+    eprintln!("\nbye!");
 }
 
 fn cmd_compile_wasm(file: &PathBuf, output: Option<&std::path::Path>) {
