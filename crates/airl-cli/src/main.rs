@@ -71,6 +71,10 @@ enum ApiAction {
         /// Port to listen on
         #[arg(short, long, default_value = "9090")]
         port: u16,
+        /// API tokens for authentication (comma-separated). If set, all requests
+        /// require Authorization: Bearer <token> header.
+        #[arg(long)]
+        auth_tokens: Option<String>,
     },
 }
 
@@ -102,8 +106,17 @@ async fn main() {
         Commands::Project { file, lang } => cmd_project(&file, &lang),
         Commands::Repl => cmd_repl(),
         Commands::Api { action } => match action {
-            ApiAction::Serve { port } => {
-                airl_api::serve(port).await;
+            ApiAction::Serve { port, auth_tokens } => {
+                if let Some(tokens_str) = auth_tokens {
+                    let tokens: Vec<String> = tokens_str
+                        .split(',')
+                        .map(|t| t.trim().to_string())
+                        .filter(|t| !t.is_empty())
+                        .collect();
+                    airl_api::serve_with_auth(port, tokens).await;
+                } else {
+                    airl_api::serve(port).await;
+                }
             }
         },
     }
