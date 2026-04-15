@@ -5,6 +5,7 @@
 //! constraint checking, and text projections.
 
 pub mod projection;
+pub mod workspace;
 
 use airl_ir::module::Module;
 use airl_ir::node::Node;
