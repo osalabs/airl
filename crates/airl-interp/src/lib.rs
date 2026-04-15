@@ -750,6 +750,48 @@ impl<'a> Interpreter<'a> {
                 });
             }
 
+            // Process
+            "std::process::exit" => {
+                let code = args.first()
+                    .and_then(|v| v.as_integer())
+                    .unwrap_or(0);
+                std::process::exit(code as i32);
+            }
+            "std::process::exec" => match args.first() {
+                Some(Value::Str(cmd)) => {
+                    let output = std::process::Command::new(if cfg!(windows) { "cmd" } else { "sh" })
+                        .args(if cfg!(windows) { vec!["/C", cmd] } else { vec!["-c", cmd] })
+                        .output();
+                    match output {
+                        Ok(o) => {
+                            let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+                            let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+                            let mut result = BTreeMap::new();
+                            result.insert("stdout".to_string(), Value::Str(stdout));
+                            result.insert("stderr".to_string(), Value::Str(stderr));
+                            result.insert("code".to_string(), Value::Integer(o.status.code().unwrap_or(-1) as i64));
+                            Value::Map(result)
+                        }
+                        Err(_) => Value::Unit,
+                    }
+                }
+                _ => Value::Unit,
+            },
+            "std::process::env_var" => match args.first() {
+                Some(Value::Str(name)) => match std::env::var(name) {
+                    Ok(val) => Value::Str(val),
+                    Err(_) => Value::Unit,
+                },
+                _ => Value::Unit,
+            },
+            "std::process::set_env_var" => match (args.first(), args.get(1)) {
+                (Some(Value::Str(name)), Some(Value::Str(val))) => {
+                    std::env::set_var(name, val);
+                    Value::Unit
+                }
+                _ => Value::Unit,
+            },
+
             // File I/O
             "std::io::read_file" => match args.first() {
                 Some(Value::Str(path)) => match std::fs::read_to_string(path) {
@@ -1770,5 +1812,49 @@ mod tests {
             }
         }"#);
         assert_eq!(run(&json), "true\n");
+    }
+
+    #[test]
+    fn test_process_env_var() {
+        // Set an env var, then read it back
+        let json = wrap_main(r#"{
+            "id":"b","kind":"Block","type":"Unit",
+            "statements":[
+                {"id":"s1","kind":"Call","type":"Unit","target":"std::process::set_env_var",
+                    "args":[
+                        {"id":"k","kind":"Literal","type":"String","value":"AIRL_TEST_VAR"},
+                        {"id":"v","kind":"Literal","type":"String","value":"hello_from_airl"}
+                    ]}
+            ],
+            "result":{"id":"s2","kind":"Call","type":"Unit","target":"std::io::println",
+                "args":[{"id":"g","kind":"Call","type":"String","target":"std::process::env_var",
+                    "args":[{"id":"k2","kind":"Literal","type":"String","value":"AIRL_TEST_VAR"}]}]}
+        }"#);
+        assert_eq!(run(&json), "hello_from_airl\n");
+    }
+
+    #[test]
+    fn test_error_assert_and_unwrap() {
+        // unwrap_or on non-unit returns the value
+        let json = wrap_main(r#"{
+            "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
+            "args":[{"id":"n2","kind":"Call","type":"Unit","target":"std::error::unwrap_or",
+                "args":[
+                    {"id":"n3","kind":"Literal","type":"I64","value":42},
+                    {"id":"n4","kind":"Literal","type":"I64","value":0}
+                ]}]
+        }"#);
+        assert_eq!(run(&json), "42\n");
+
+        // unwrap_or on Unit returns the default
+        let json2 = wrap_main(r#"{
+            "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
+            "args":[{"id":"n2","kind":"Call","type":"Unit","target":"std::error::unwrap_or",
+                "args":[
+                    {"id":"n3","kind":"Literal","type":"Unit","value":null},
+                    {"id":"n4","kind":"Literal","type":"I64","value":99}
+                ]}]
+        }"#);
+        assert_eq!(run(&json2), "99\n");
     }
 }

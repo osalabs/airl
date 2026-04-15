@@ -30,6 +30,10 @@ pub struct Diagnostic {
     pub severity: Severity,
     pub node_id: Option<String>,
     pub message: String,
+    /// Optional function context (which function contains the error).
+    pub function_context: Option<String>,
+    /// Optional hint for how to fix the issue.
+    pub hint: Option<String>,
 }
 
 impl std::fmt::Display for Diagnostic {
@@ -38,11 +42,21 @@ impl std::fmt::Display for Diagnostic {
             Severity::Error => "error",
             Severity::Warning => "warning",
         };
-        if let Some(ref id) = self.node_id {
-            write!(f, "{level} at {id}: {}", self.message)
+        if let Some(ref func) = self.function_context {
+            if let Some(ref id) = self.node_id {
+                write!(f, "{level} in {func} at {id}: {}", self.message)?;
+            } else {
+                write!(f, "{level} in {func}: {}", self.message)?;
+            }
+        } else if let Some(ref id) = self.node_id {
+            write!(f, "{level} at {id}: {}", self.message)?;
         } else {
-            write!(f, "{level}: {}", self.message)
+            write!(f, "{level}: {}", self.message)?;
         }
+        if let Some(ref hint) = self.hint {
+            write!(f, "\n  hint: {hint}")?;
+        }
+        Ok(())
     }
 }
 
@@ -99,6 +113,8 @@ struct TypeChecker {
     locals: Vec<(String, Type)>,
     /// The effects declared by the current function being checked
     current_func_effects: Vec<Effect>,
+    /// Name of the function currently being checked (for diagnostic context)
+    current_func_name: Option<String>,
 
     errors: Vec<Diagnostic>,
     warnings: Vec<Diagnostic>,
@@ -111,6 +127,7 @@ impl TypeChecker {
             builtins: HashMap::new(),
             locals: Vec::new(),
             current_func_effects: Vec::new(),
+            current_func_name: None,
             errors: Vec::new(),
             warnings: Vec::new(),
         };
@@ -543,6 +560,40 @@ impl TypeChecker {
             },
         );
 
+        // Process
+        b.insert(
+            "std::process::exit".into(),
+            FuncSig {
+                params: vec![Type::I64],
+                returns: Type::Unit,
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::process::exec".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::Unit, // returns Map
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::process::env_var".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::String,
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::process::set_env_var".into(),
+            FuncSig {
+                params: vec![Type::String, Type::String],
+                returns: Type::Unit,
+                effects: vec![Effect::IO],
+            },
+        );
+
         // Error handling
         b.insert(
             "std::error::is_unit".into(),
@@ -585,6 +636,18 @@ impl TypeChecker {
             severity: Severity::Error,
             node_id: Some(node_id.to_string()),
             message: message.into(),
+            function_context: self.current_func_name.clone(),
+            hint: None,
+        });
+    }
+
+    fn error_with_hint(&mut self, node_id: &str, message: impl Into<String>, hint: impl Into<String>) {
+        self.errors.push(Diagnostic {
+            severity: Severity::Error,
+            node_id: Some(node_id.to_string()),
+            message: message.into(),
+            function_context: self.current_func_name.clone(),
+            hint: Some(hint.into()),
         });
     }
 
@@ -593,6 +656,8 @@ impl TypeChecker {
             severity: Severity::Warning,
             node_id: Some(node_id.to_string()),
             message: message.into(),
+            function_context: self.current_func_name.clone(),
+            hint: None,
         });
     }
 
@@ -1029,10 +1094,14 @@ impl TypeChecker {
                 continue; // Pure is always allowed
             }
             if !self.current_func_effects_cover(effect) {
-                self.error(
+                self.error_with_hint(
                     node_id,
                     format!(
                         "calling '{target}' requires effect {}, but current function doesn't declare it",
+                        effect_name(effect)
+                    ),
+                    format!(
+                        "add \"{}\" to the function's effects list",
                         effect_name(effect)
                     ),
                 );
@@ -1191,6 +1260,7 @@ pub fn typecheck(module: &Module) -> TypeCheckResult {
     // Check each function
     for func in module.functions() {
         tc.current_func_effects = func.effects.clone();
+        tc.current_func_name = Some(func.name.clone());
         // Bind function parameters as locals
         tc.locals.clear();
         for param in &func.params {
