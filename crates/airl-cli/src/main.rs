@@ -30,6 +30,12 @@ enum Commands {
     Compile {
         /// Path to the .airl.json file
         file: PathBuf,
+        /// Compilation target: "native" (default) or "wasm"
+        #[arg(long, default_value = "native")]
+        target: String,
+        /// Output file path (for WASM target)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
     },
     /// Apply a JSON patch to an AIRL module
     Patch {
@@ -71,7 +77,13 @@ async fn main() {
             }
         }
         Commands::Check { file } => cmd_check(&file),
-        Commands::Compile { file } => cmd_compile(&file),
+        Commands::Compile { file, target, output } => {
+            if target == "wasm" {
+                cmd_compile_wasm(&file, output.as_deref());
+            } else {
+                cmd_compile(&file);
+            }
+        }
         Commands::Patch {
             module_file,
             patch_file,
@@ -167,6 +179,33 @@ fn cmd_compile(file: &PathBuf) {
         }
         Err(e) => {
             eprintln!("compile error: {e}");
+            process::exit(1);
+        }
+    }
+}
+
+fn cmd_compile_wasm(file: &PathBuf, output: Option<&std::path::Path>) {
+    let graph = load_ir(file);
+    typecheck_or_exit(&graph);
+
+    match airl_compile::wasm::compile_to_wasm(graph.module()) {
+        Ok(wasm_bytes) => {
+            let out_path = output.unwrap_or_else(|| {
+                // Default: same name as input but with .wasm extension
+                std::path::Path::new("output.wasm")
+            });
+            if let Err(e) = std::fs::write(out_path, &wasm_bytes) {
+                eprintln!("error: cannot write {}: {e}", out_path.display());
+                process::exit(1);
+            }
+            println!(
+                "OK — compiled to WASM: {} ({} bytes)",
+                out_path.display(),
+                wasm_bytes.len()
+            );
+        }
+        Err(e) => {
+            eprintln!("WASM compile error: {e}");
             process::exit(1);
         }
     }

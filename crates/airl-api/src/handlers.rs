@@ -333,6 +333,42 @@ pub async fn get_effects(
 }
 
 // ---------------------------------------------------------------------------
+// WASM compilation
+// ---------------------------------------------------------------------------
+
+pub async fn compile_wasm(State(state): State<AppState>) -> impl IntoResponse {
+    let module = match with_project(&state, |p| p.module.clone()) {
+        Ok(m) => m,
+        Err(e) => return e.into_response(),
+    };
+
+    match airl_compile::wasm::compile_to_wasm(&module) {
+        Ok(wasm_bytes) => {
+            use axum::http::header;
+            let headers = [
+                (header::CONTENT_TYPE, "application/wasm"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"output.wasm\"",
+                ),
+            ];
+            (StatusCode::OK, headers, wasm_bytes).into_response()
+        }
+        Err(e) => (
+            StatusCode::OK,
+            Json(CompileResponse {
+                success: false,
+                stdout: String::new(),
+                exit_code: 1,
+                compile_time_ms: 0,
+                error: Some(e.to_string()),
+            }),
+        )
+            .into_response(),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Projections
 // ---------------------------------------------------------------------------
 
@@ -341,30 +377,35 @@ pub async fn project_to_text(
     Json(req): Json<ProjectToTextRequest>,
 ) -> impl IntoResponse {
     match with_project(&state, |p| {
-        // Basic text projection: pretty-print the module as JSON
-        // (Full language projections like TypeScript/Python are Stage 7)
         let text = match req.language.as_str() {
             "json" => serde_json::to_string_pretty(&p.module).unwrap_or_default(),
-            _ => {
-                // Simple pseudo-code projection
-                let mut out = String::new();
-                for func in p.module.functions() {
-                    let params: Vec<String> = func
-                        .params
-                        .iter()
-                        .map(|p| format!("{}: {}", p.name, p.param_type.to_type_str()))
-                        .collect();
-                    let effects: Vec<String> =
-                        func.effects.iter().map(|e| e.to_effect_str()).collect();
-                    out.push_str(&format!(
-                        "fn {}({}) -> {} [{}]\n",
-                        func.name,
-                        params.join(", "),
-                        func.returns.to_type_str(),
-                        effects.join(", ")
-                    ));
+            lang => {
+                // Try real language projection (TypeScript, Python)
+                if let Some(language) =
+                    airl_project::projection::Language::from_str(lang)
+                {
+                    airl_project::projection::project_module(&p.module, language)
+                } else {
+                    // Fallback: pseudo-code signatures
+                    let mut out = String::new();
+                    for func in p.module.functions() {
+                        let params: Vec<String> = func
+                            .params
+                            .iter()
+                            .map(|p| format!("{}: {}", p.name, p.param_type.to_type_str()))
+                            .collect();
+                        let effects: Vec<String> =
+                            func.effects.iter().map(|e| e.to_effect_str()).collect();
+                        out.push_str(&format!(
+                            "fn {}({}) -> {} [{}]\n",
+                            func.name,
+                            params.join(", "),
+                            func.returns.to_type_str(),
+                            effects.join(", ")
+                        ));
+                    }
+                    out
                 }
-                out
             }
         };
         TextProjectionResponse {

@@ -6,6 +6,5 @@ edition.workspace = true
 [dependencies]
 airl-ir = { workspace = true }
 thiserror = { workspace = true }
-
-[dev-dependencies]
 serde_json = { workspace = true }
+

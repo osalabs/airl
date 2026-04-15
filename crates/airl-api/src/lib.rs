@@ -2,10 +2,13 @@
 //!
 //! Provides a JSON HTTP API wrapping all AIRL toolchain operations:
 //! project management, semantic patches, type checking, interpretation,
-//! compilation, queries, and text projections.
+//! compilation (native + WASM), queries, and text projections.
+//!
+//! Supports optional token-based authentication via `Authorization: Bearer <token>`.
 //!
 //! Start the server with `serve()` or use `build_router()` for testing.
 
+pub mod auth;
 pub mod handlers;
 pub mod models;
 pub mod routes;
@@ -16,7 +19,8 @@ use std::sync::{Arc, Mutex};
 /// Start the API server on the given port.
 pub async fn serve(port: u16) {
     let state: AppState = Arc::new(Mutex::new(None));
-    let app = routes::build_router(state);
+    let auth = auth::AuthConfig::allow_all();
+    let app = routes::build_router(state, auth);
 
     let addr = format!("0.0.0.0:{port}");
     eprintln!("AIRL API server listening on {addr}");
@@ -25,10 +29,24 @@ pub async fn serve(port: u16) {
     axum::serve(listener, app).await.unwrap();
 }
 
-/// Build the router for testing (no server startup).
+/// Start the API server with auth enabled.
+pub async fn serve_with_auth(port: u16, tokens: Vec<String>) {
+    let state: AppState = Arc::new(Mutex::new(None));
+    let auth = auth::AuthConfig::new(tokens);
+    let app = routes::build_router(state, auth);
+
+    let addr = format!("0.0.0.0:{port}");
+    eprintln!("AIRL API server listening on {addr} (auth enabled)");
+
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
+
+/// Build the router for testing (no server startup, no auth).
 pub fn build_test_router() -> axum::Router {
     let state: AppState = Arc::new(Mutex::new(None));
-    routes::build_router(state)
+    let auth = auth::AuthConfig::allow_all();
+    routes::build_router(state, auth)
 }
 
 #[cfg(test)]
@@ -323,5 +341,126 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
         let body = body_string(resp.into_body()).await;
         assert!(body.contains("patched via API"));
+    }
+
+    // --- Auth tests ---
+
+    fn build_auth_router() -> axum::Router {
+        let state: AppState = Arc::new(Mutex::new(None));
+        let auth_config =
+            auth::AuthConfig::new(vec!["test-token-123".to_string()]);
+        routes::build_router(state, auth_config)
+    }
+
+    #[tokio::test]
+    async fn test_auth_rejects_missing_token() {
+        let app = build_auth_router();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/project")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        let body = body_string(resp.into_body()).await;
+        assert!(body.contains("MISSING_AUTH"));
+    }
+
+    #[tokio::test]
+    async fn test_auth_rejects_bad_token() {
+        let app = build_auth_router();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/project")
+                    .header("authorization", "Bearer wrong-token")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        let body = body_string(resp.into_body()).await;
+        assert!(body.contains("INVALID_TOKEN"));
+    }
+
+    #[tokio::test]
+    async fn test_auth_accepts_valid_token() {
+        let app = build_auth_router();
+        // With auth, /project should return 400 (no project loaded) not 401
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/project")
+                    .header("authorization", "Bearer test-token-123")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // Should pass auth (get 400 "no project" instead of 401)
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let body = body_string(resp.into_body()).await;
+        assert!(body.contains("NO_PROJECT"));
+    }
+
+    // --- WASM compile endpoint test ---
+
+    #[tokio::test]
+    async fn test_compile_wasm_endpoint() {
+        let app = setup_project().await;
+        let resp = app
+            .oneshot(json_request("POST", "/compile/wasm", "{}"))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = resp
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes();
+        // Should start with WASM magic bytes
+        assert!(bytes.starts_with(b"\0asm"), "should be valid WASM binary");
+        assert!(bytes.len() > 20);
+    }
+
+    // --- Text projection endpoint tests (TypeScript/Python) ---
+
+    #[tokio::test]
+    async fn test_project_to_typescript() {
+        let app = setup_project().await;
+        let resp = app
+            .oneshot(json_request(
+                "POST",
+                "/project/text",
+                r#"{"language":"typescript"}"#,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = body_string(resp.into_body()).await;
+        assert!(body.contains("console.log"));
+        assert!(body.contains("function main"));
+    }
+
+    #[tokio::test]
+    async fn test_project_to_python() {
+        let app = setup_project().await;
+        let resp = app
+            .oneshot(json_request(
+                "POST",
+                "/project/text",
+                r#"{"language":"python"}"#,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = body_string(resp.into_body()).await;
+        assert!(body.contains("print("));
+        assert!(body.contains("def main"));
     }
 }

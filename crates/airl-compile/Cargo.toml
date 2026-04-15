@@ -12,6 +12,8 @@ cranelift-module = "0.116"
 cranelift-jit = "0.116"
 cranelift-native = "0.116"
 target-lexicon = "0.12"
+wasm-encoder = "0.246"
 
 [dev-dependencies]
 serde_json = { workspace = true }
+wasmparser = "0.246"

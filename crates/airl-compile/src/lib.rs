@@ -7,6 +7,7 @@
 //! Supported nodes: Literal, Param, Let, If, BinOp, UnaryOp, Call, Return, Block
 
 mod lower;
+pub mod wasm;
 
 use airl_ir::module::Module;
 use std::time::Instant;
@@ -164,5 +165,102 @@ mod tests {
             &wrap_main(r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"BinOp","type":"I64","op":"Mod","lhs":{"id":"n3","kind":"Literal","type":"I64","value":15},"rhs":{"id":"n4","kind":"Literal","type":"I64","value":4}}]}"#),
             "3\n",
         );
+    }
+
+    // --- New builtin tests ---
+
+    #[test]
+    fn test_compile_str_from_i64_println() {
+        // println(string::from_i64(42)) should print "42\n"
+        compile_and_assert(
+            &wrap_main(r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Call","type":"String","target":"std::string::from_i64","args":[{"id":"n3","kind":"Literal","type":"I64","value":42}]}]}"#),
+            "42\n",
+        );
+    }
+
+    #[test]
+    fn test_compile_str_concat() {
+        // println(string::concat("hello", " world"))
+        compile_and_assert(
+            &wrap_main(r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Call","type":"String","target":"std::string::concat","args":[{"id":"n3","kind":"Literal","type":"String","value":"hello"},{"id":"n4","kind":"Literal","type":"String","value":" world"}]}]}"#),
+            "hello world\n",
+        );
+    }
+
+    #[test]
+    fn test_compile_str_len() {
+        // println(string::len("hello"))
+        compile_and_assert(
+            &wrap_main(r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Call","type":"I64","target":"std::string::len","args":[{"id":"n3","kind":"Literal","type":"String","value":"hello"}]}]}"#),
+            "5\n",
+        );
+    }
+
+    #[test]
+    fn test_compile_math_abs() {
+        compile_and_assert(
+            &wrap_main(r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Call","type":"I64","target":"std::math::abs","args":[{"id":"n3","kind":"UnaryOp","type":"I64","op":"Neg","operand":{"id":"n4","kind":"Literal","type":"I64","value":42}}]}]}"#),
+            "42\n",
+        );
+    }
+
+    #[test]
+    fn test_compile_math_max_min() {
+        compile_and_assert(
+            &wrap_main(r#"{"id":"b1","kind":"Block","type":"Unit","statements":[{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Call","type":"I64","target":"std::math::max","args":[{"id":"n3","kind":"Literal","type":"I64","value":10},{"id":"n4","kind":"Literal","type":"I64","value":20}]}]},{"id":"n5","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n6","kind":"Call","type":"I64","target":"std::math::min","args":[{"id":"n7","kind":"Literal","type":"I64","value":10},{"id":"n8","kind":"Literal","type":"I64","value":20}]}]}],"result":{"id":"e","kind":"Literal","type":"Unit","value":null}}"#),
+            "20\n10\n",
+        );
+    }
+
+    // --- WASM compilation tests ---
+
+    #[test]
+    fn test_wasm_hello_world() {
+        let json = wrap_main(r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Literal","type":"String","value":"hello world"}]}"#);
+        let module = load_module(&json);
+        let wasm_bytes = crate::wasm::compile_to_wasm(&module).unwrap();
+        // Verify it's a valid WASM module
+        assert!(wasm_bytes.starts_with(b"\0asm"), "should start with WASM magic bytes");
+        assert!(wasm_bytes.len() > 20, "WASM module should have substantial content");
+        // Validate with wasmparser
+        wasmparser::validate(&wasm_bytes).expect("generated WASM should be valid");
+    }
+
+    #[test]
+    fn test_wasm_arithmetic() {
+        let body = r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"BinOp","type":"I64","op":"Add","lhs":{"id":"n3","kind":"Literal","type":"I64","value":40},"rhs":{"id":"n4","kind":"Literal","type":"I64","value":2}}]}"#;
+        let json = wrap_main(body);
+        let module = load_module(&json);
+        let wasm_bytes = crate::wasm::compile_to_wasm(&module).unwrap();
+        wasmparser::validate(&wasm_bytes).expect("generated WASM should be valid");
+    }
+
+    #[test]
+    fn test_wasm_user_function() {
+        let body = r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Call","type":"I64","target":"double","args":[{"id":"n3","kind":"Literal","type":"I64","value":21}]}]}"#;
+        let double = r#"{"id":"f_double","name":"double","params":[{"name":"n","type":"I64","index":0}],"returns":"I64","effects":["Pure"],"body":{"id":"d1","kind":"BinOp","type":"I64","op":"Mul","lhs":{"id":"d2","kind":"Param","type":"I64","name":"n","index":0},"rhs":{"id":"d3","kind":"Literal","type":"I64","value":2}}}"#;
+        let json = wrap_with_functions(body, double);
+        let module = load_module(&json);
+        let wasm_bytes = crate::wasm::compile_to_wasm(&module).unwrap();
+        wasmparser::validate(&wasm_bytes).expect("generated WASM should be valid");
+    }
+
+    #[test]
+    fn test_wasm_if_else() {
+        let body = r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"If","type":"I64","cond":{"id":"n3","kind":"BinOp","type":"Bool","op":"Gt","lhs":{"id":"n4","kind":"Literal","type":"I64","value":10},"rhs":{"id":"n5","kind":"Literal","type":"I64","value":5}},"then_branch":{"id":"n6","kind":"Literal","type":"I64","value":1},"else_branch":{"id":"n7","kind":"Literal","type":"I64","value":0}}]}"#;
+        let json = wrap_main(body);
+        let module = load_module(&json);
+        let wasm_bytes = crate::wasm::compile_to_wasm(&module).unwrap();
+        wasmparser::validate(&wasm_bytes).expect("generated WASM should be valid");
+    }
+
+    #[test]
+    fn test_wasm_recursive_fibonacci() {
+        let body = r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Call","type":"I64","target":"fib","args":[{"id":"n3","kind":"Literal","type":"I64","value":10}]}]}"#;
+        let fib = r#"{"id":"f_fib","name":"fib","params":[{"name":"n","type":"I64","index":0}],"returns":"I64","effects":["Pure"],"body":{"id":"f1","kind":"If","type":"I64","cond":{"id":"f2","kind":"BinOp","type":"Bool","op":"Lte","lhs":{"id":"f3","kind":"Param","type":"I64","name":"n","index":0},"rhs":{"id":"f4","kind":"Literal","type":"I64","value":1}},"then_branch":{"id":"f5","kind":"Param","type":"I64","name":"n","index":0},"else_branch":{"id":"f6","kind":"BinOp","type":"I64","op":"Add","lhs":{"id":"f7","kind":"Call","type":"I64","target":"fib","args":[{"id":"f8","kind":"BinOp","type":"I64","op":"Sub","lhs":{"id":"f9","kind":"Param","type":"I64","name":"n","index":0},"rhs":{"id":"f10","kind":"Literal","type":"I64","value":1}}]},"rhs":{"id":"f11","kind":"Call","type":"I64","target":"fib","args":[{"id":"f12","kind":"BinOp","type":"I64","op":"Sub","lhs":{"id":"f13","kind":"Param","type":"I64","name":"n","index":0},"rhs":{"id":"f14","kind":"Literal","type":"I64","value":2}}]}}}}"#;
+        let json = wrap_with_functions(body, fib);
+        let module = load_module(&json);
+        let wasm_bytes = crate::wasm::compile_to_wasm(&module).unwrap();
+        wasmparser::validate(&wasm_bytes).expect("generated WASM should be valid");
     }
 }

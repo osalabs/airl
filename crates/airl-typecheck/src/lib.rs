@@ -154,6 +154,40 @@ impl TypeChecker {
                 effects: vec![Effect::IO],
             },
         );
+        b.insert(
+            "std::io::read_file".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::String,
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::io::write_file".into(),
+            FuncSig {
+                params: vec![Type::String, Type::String],
+                returns: Type::Bool,
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::io::read_dir".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::Array {
+                    element: Box::new(Type::String),
+                },
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::io::file_exists".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::Bool,
+                effects: vec![Effect::IO],
+            },
+        );
 
         // String
         b.insert(
@@ -418,6 +452,98 @@ impl TypeChecker {
                 params: vec![],
                 returns: Type::Array { element: Box::new(Type::String) },
                 effects: vec![Effect::IO],
+            },
+        );
+
+        // JSON
+        b.insert(
+            "std::json::parse".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::Unit, // returns dynamic value
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::json::serialize".into(),
+            FuncSig {
+                params: vec![Type::Unit], // accepts any value
+                returns: Type::String,
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::json::serialize_pretty".into(),
+            FuncSig {
+                params: vec![Type::Unit],
+                returns: Type::String,
+                effects: vec![Effect::Pure],
+            },
+        );
+
+        // Collections
+        b.insert(
+            "std::collections::new_map".into(),
+            FuncSig {
+                params: vec![],
+                returns: Type::Unit, // returns Map (dynamic)
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::collections::insert".into(),
+            FuncSig {
+                params: vec![Type::Unit, Type::String, Type::Unit],
+                returns: Type::Unit,
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::collections::get".into(),
+            FuncSig {
+                params: vec![Type::Unit, Type::String],
+                returns: Type::Unit,
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::collections::remove".into(),
+            FuncSig {
+                params: vec![Type::Unit, Type::String],
+                returns: Type::Unit,
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::collections::contains_key".into(),
+            FuncSig {
+                params: vec![Type::Unit, Type::String],
+                returns: Type::Bool,
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::collections::keys".into(),
+            FuncSig {
+                params: vec![Type::Unit],
+                returns: Type::Array { element: Box::new(Type::String) },
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::collections::values".into(),
+            FuncSig {
+                params: vec![Type::Unit],
+                returns: Type::Array { element: Box::new(Type::Unit) },
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::collections::map_len".into(),
+            FuncSig {
+                params: vec![Type::Unit],
+                returns: Type::I64,
+                effects: vec![Effect::Pure],
             },
         );
     }

@@ -2,7 +2,9 @@
 //!
 //! Manages the lifecycle of an AIRL project: creating from IR,
 //! applying patches with undo history, querying functions/types,
-//! and constraint checking.
+//! constraint checking, and text projections.
+
+pub mod projection;
 
 use airl_ir::module::Module;
 use airl_ir::node::Node;

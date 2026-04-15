@@ -73,6 +73,7 @@ pub enum Value {
     Unit,
     Array(Vec<Value>),
     Struct(BTreeMap<String, Value>),
+    Map(BTreeMap<String, Value>),
 }
 
 impl Value {
@@ -120,6 +121,13 @@ impl Value {
             }
             Value::Struct(fields) => {
                 let inner: Vec<String> = fields
+                    .iter()
+                    .map(|(k, v)| format!("{k}: {}", v.to_display_string()))
+                    .collect();
+                format!("{{{}}}", inner.join(", "))
+            }
+            Value::Map(entries) => {
+                let inner: Vec<String> = entries
                     .iter()
                     .map(|(k, v)| format!("{k}: {}", v.to_display_string()))
                     .collect();
@@ -647,6 +655,107 @@ impl<'a> Interpreter<'a> {
                 Value::Array(vec![])
             }
 
+            // JSON
+            "std::json::parse" => match args.first() {
+                Some(Value::Str(s)) => match serde_json::from_str::<serde_json::Value>(s) {
+                    Ok(val) => json_to_value(&val),
+                    Err(_) => Value::Unit,
+                },
+                _ => Value::Unit,
+            },
+            "std::json::serialize" => {
+                let json_val = value_to_json(args.first().unwrap_or(&Value::Unit));
+                Value::Str(json_val.to_string())
+            }
+            "std::json::serialize_pretty" => {
+                let json_val = value_to_json(args.first().unwrap_or(&Value::Unit));
+                Value::Str(serde_json::to_string_pretty(&json_val).unwrap_or_default())
+            }
+
+            // Collections (HashMap)
+            "std::collections::new_map" => Value::Map(BTreeMap::new()),
+            "std::collections::insert" => match (args.first(), args.get(1), args.get(2)) {
+                (Some(Value::Map(map)), Some(Value::Str(key)), Some(val)) => {
+                    let mut new_map = map.clone();
+                    new_map.insert(key.clone(), val.clone());
+                    Value::Map(new_map)
+                }
+                _ => Value::Unit,
+            },
+            "std::collections::get" => match (args.first(), args.get(1)) {
+                (Some(Value::Map(map)), Some(Value::Str(key))) => {
+                    map.get(key).cloned().unwrap_or(Value::Unit)
+                }
+                _ => Value::Unit,
+            },
+            "std::collections::remove" => match (args.first(), args.get(1)) {
+                (Some(Value::Map(map)), Some(Value::Str(key))) => {
+                    let mut new_map = map.clone();
+                    new_map.remove(key);
+                    Value::Map(new_map)
+                }
+                _ => Value::Unit,
+            },
+            "std::collections::contains_key" => match (args.first(), args.get(1)) {
+                (Some(Value::Map(map)), Some(Value::Str(key))) => {
+                    Value::Boolean(map.contains_key(key))
+                }
+                _ => Value::Boolean(false),
+            },
+            "std::collections::keys" => match args.first() {
+                Some(Value::Map(map)) => {
+                    Value::Array(map.keys().map(|k| Value::Str(k.clone())).collect())
+                }
+                _ => Value::Array(vec![]),
+            },
+            "std::collections::values" => match args.first() {
+                Some(Value::Map(map)) => {
+                    Value::Array(map.values().cloned().collect())
+                }
+                _ => Value::Array(vec![]),
+            },
+            "std::collections::map_len" => match args.first() {
+                Some(Value::Map(map)) => Value::Integer(map.len() as i64),
+                _ => Value::Integer(0),
+            },
+
+            // File I/O
+            "std::io::read_file" => match args.first() {
+                Some(Value::Str(path)) => match std::fs::read_to_string(path) {
+                    Ok(contents) => Value::Str(contents),
+                    Err(_) => Value::Unit,
+                },
+                _ => Value::Unit,
+            },
+            "std::io::write_file" => match (args.first(), args.get(1)) {
+                (Some(Value::Str(path)), Some(Value::Str(contents))) => {
+                    match std::fs::write(path, contents) {
+                        Ok(()) => Value::Boolean(true),
+                        Err(_) => Value::Boolean(false),
+                    }
+                }
+                _ => Value::Boolean(false),
+            },
+            "std::io::read_dir" => match args.first() {
+                Some(Value::Str(path)) => match std::fs::read_dir(path) {
+                    Ok(entries) => {
+                        let mut items = Vec::new();
+                        for entry in entries.flatten() {
+                            if let Some(name) = entry.file_name().to_str() {
+                                items.push(Value::Str(name.to_string()));
+                            }
+                        }
+                        Value::Array(items)
+                    }
+                    Err(_) => Value::Array(vec![]),
+                },
+                _ => Value::Array(vec![]),
+            },
+            "std::io::file_exists" => match args.first() {
+                Some(Value::Str(path)) => Value::Boolean(std::path::Path::new(path).exists()),
+                _ => Value::Boolean(false),
+            },
+
             // Not a builtin
             _ => return Ok(None),
         };
@@ -758,6 +867,61 @@ impl<'a> Interpreter<'a> {
                 node_id: id.to_string(),
                 message: format!("unsupported unary operation: {op:?}"),
             }),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// JSON conversion helpers
+// ---------------------------------------------------------------------------
+
+fn json_to_value(val: &serde_json::Value) -> Value {
+    match val {
+        serde_json::Value::Null => Value::Unit,
+        serde_json::Value::Bool(b) => Value::Boolean(*b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Value::Integer(i)
+            } else if let Some(f) = n.as_f64() {
+                Value::Float(f)
+            } else {
+                Value::Integer(0)
+            }
+        }
+        serde_json::Value::String(s) => Value::Str(s.clone()),
+        serde_json::Value::Array(arr) => {
+            Value::Array(arr.iter().map(json_to_value).collect())
+        }
+        serde_json::Value::Object(obj) => {
+            let map: BTreeMap<String, Value> = obj
+                .iter()
+                .map(|(k, v)| (k.clone(), json_to_value(v)))
+                .collect();
+            Value::Map(map)
+        }
+    }
+}
+
+fn value_to_json(val: &Value) -> serde_json::Value {
+    match val {
+        Value::Integer(i) => serde_json::Value::Number((*i).into()),
+        Value::Float(f) => {
+            serde_json::Number::from_f64(*f)
+                .map(serde_json::Value::Number)
+                .unwrap_or(serde_json::Value::Null)
+        }
+        Value::Boolean(b) => serde_json::Value::Bool(*b),
+        Value::Str(s) => serde_json::Value::String(s.clone()),
+        Value::Unit => serde_json::Value::Null,
+        Value::Array(items) => {
+            serde_json::Value::Array(items.iter().map(value_to_json).collect())
+        }
+        Value::Struct(fields) | Value::Map(fields) => {
+            let map: serde_json::Map<String, serde_json::Value> = fields
+                .iter()
+                .map(|(k, v)| (k.clone(), value_to_json(v)))
+                .collect();
+            serde_json::Value::Object(map)
         }
     }
 }
@@ -1443,5 +1607,137 @@ mod tests {
                 ]}]
         }"#);
         assert_eq!(run(&json), "20\n");
+    }
+
+    #[test]
+    fn test_file_io_read_write() {
+        // Write a file, then read it back
+        let tmp = std::env::temp_dir().join("airl_test_file_io.txt");
+        let tmp_str = tmp.to_string_lossy().replace('\\', "\\\\");
+
+        // write_file
+        let write_json = wrap_main(&format!(r#"{{
+            "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
+            "args":[{{"id":"n2","kind":"Call","type":"Bool","target":"std::io::write_file",
+                "args":[
+                    {{"id":"n3","kind":"Literal","type":"String","value":"{tmp_str}"}},
+                    {{"id":"n4","kind":"Literal","type":"String","value":"hello from airl"}}
+                ]}}]
+        }}"#));
+        assert_eq!(run(&write_json), "true\n");
+
+        // read_file
+        let read_json = wrap_main(&format!(r#"{{
+            "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
+            "args":[{{"id":"n2","kind":"Call","type":"String","target":"std::io::read_file",
+                "args":[
+                    {{"id":"n3","kind":"Literal","type":"String","value":"{tmp_str}"}}
+                ]}}]
+        }}"#));
+        assert_eq!(run(&read_json), "hello from airl\n");
+
+        // file_exists
+        let exists_json = wrap_main(&format!(r#"{{
+            "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
+            "args":[{{"id":"n2","kind":"Call","type":"Bool","target":"std::io::file_exists",
+                "args":[
+                    {{"id":"n3","kind":"Literal","type":"String","value":"{tmp_str}"}}
+                ]}}]
+        }}"#));
+        assert_eq!(run(&exists_json), "true\n");
+
+        // Clean up
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn test_file_io_read_dir() {
+        let tmp_dir = std::env::temp_dir().join("airl_test_read_dir");
+        let _ = std::fs::create_dir_all(&tmp_dir);
+        std::fs::write(tmp_dir.join("a.txt"), "a").unwrap();
+        std::fs::write(tmp_dir.join("b.txt"), "b").unwrap();
+
+        let dir_str = tmp_dir.to_string_lossy().replace('\\', "\\\\");
+        let json = wrap_main(&format!(r#"{{
+            "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
+            "args":[{{"id":"n2","kind":"Call","type":"Array<String>","target":"std::io::read_dir",
+                "args":[
+                    {{"id":"n3","kind":"Literal","type":"String","value":"{dir_str}"}}
+                ]}}]
+        }}"#));
+
+        let output = run(&json);
+        assert!(output.contains("a.txt"));
+        assert!(output.contains("b.txt"));
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+    }
+
+    #[test]
+    fn test_json_parse_and_serialize() {
+        // Parse a JSON string, then serialize it back
+        let json = wrap_main(r#"{
+            "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
+            "args":[{"id":"n2","kind":"Call","type":"String","target":"std::json::serialize",
+                "args":[{"id":"n3","kind":"Call","type":"Unit","target":"std::json::parse",
+                    "args":[{"id":"n4","kind":"Literal","type":"String","value":"{\"x\":42}"}]
+                }]
+            }]
+        }"#);
+        let output = run(&json);
+        assert!(output.contains("\"x\":42") || output.contains("\"x\": 42"));
+    }
+
+    #[test]
+    fn test_collections_map() {
+        // Create map, insert, get
+        let json = wrap_main(r#"{
+            "id":"b","kind":"Block","type":"Unit",
+            "statements":[],
+            "result": {"id":"n1","kind":"Let","type":"Unit","name":"m",
+                "value":{"id":"n2","kind":"Call","type":"Unit","target":"std::collections::new_map","args":[]},
+                "body":{"id":"n3","kind":"Let","type":"Unit","name":"m2",
+                    "value":{"id":"n4","kind":"Call","type":"Unit","target":"std::collections::insert",
+                        "args":[
+                            {"id":"n5","kind":"Param","type":"Unit","name":"m","index":0},
+                            {"id":"n6","kind":"Literal","type":"String","value":"key"},
+                            {"id":"n7","kind":"Literal","type":"I64","value":99}
+                        ]},
+                    "body":{"id":"n8","kind":"Call","type":"Unit","target":"std::io::println",
+                        "args":[{"id":"n9","kind":"Call","type":"Unit","target":"std::collections::get",
+                            "args":[
+                                {"id":"n10","kind":"Param","type":"Unit","name":"m2","index":0},
+                                {"id":"n11","kind":"Literal","type":"String","value":"key"}
+                            ]}]
+                    }
+                }
+            }
+        }"#);
+        assert_eq!(run(&json), "99\n");
+    }
+
+    #[test]
+    fn test_collections_contains_key() {
+        let json = wrap_main(r#"{
+            "id":"b","kind":"Block","type":"Unit",
+            "statements":[],
+            "result": {"id":"n1","kind":"Let","type":"Unit","name":"m",
+                "value":{"id":"n2","kind":"Call","type":"Unit","target":"std::collections::insert",
+                    "args":[
+                        {"id":"n3","kind":"Call","type":"Unit","target":"std::collections::new_map","args":[]},
+                        {"id":"n4","kind":"Literal","type":"String","value":"foo"},
+                        {"id":"n5","kind":"Literal","type":"I64","value":1}
+                    ]},
+                "body":{"id":"n6","kind":"Call","type":"Unit","target":"std::io::println",
+                    "args":[{"id":"n7","kind":"Call","type":"Bool","target":"std::collections::contains_key",
+                        "args":[
+                            {"id":"n8","kind":"Param","type":"Unit","name":"m","index":0},
+                            {"id":"n9","kind":"Literal","type":"String","value":"foo"}
+                        ]}]
+                }
+            }
+        }"#);
+        assert_eq!(run(&json), "true\n");
     }
 }
