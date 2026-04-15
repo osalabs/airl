@@ -542,6 +542,42 @@ impl TypeChecker {
                 effects: vec![Effect::Pure],
             },
         );
+
+        // Error handling
+        b.insert(
+            "std::error::is_unit".into(),
+            FuncSig {
+                params: vec![Type::Unit],
+                returns: Type::Bool,
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::error::unwrap_or".into(),
+            FuncSig {
+                params: vec![Type::Unit, Type::Unit],
+                returns: Type::Unit,
+                effects: vec![Effect::Pure],
+            },
+        );
+        b.insert(
+            "std::error::assert".into(),
+            FuncSig {
+                params: vec![Type::Bool],
+                returns: Type::Unit,
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::error::panic".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::Unit,
+                effects: vec![Effect::Fail {
+                    error_type: "Panic".to_string(),
+                }],
+            },
+        );
     }
 
     fn error(&mut self, node_id: &str, message: impl Into<String>) {

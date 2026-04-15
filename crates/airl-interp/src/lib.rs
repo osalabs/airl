@@ -719,6 +719,37 @@ impl<'a> Interpreter<'a> {
                 _ => Value::Integer(0),
             },
 
+            // Error handling
+            "std::error::is_unit" => match args.first() {
+                Some(Value::Unit) => Value::Boolean(true),
+                _ => Value::Boolean(false),
+            },
+            "std::error::unwrap_or" => match (args.first(), args.get(1)) {
+                (Some(Value::Unit), Some(default)) => default.clone(),
+                (Some(val), _) => val.clone(),
+                _ => Value::Unit,
+            },
+            "std::error::assert" => match args.first() {
+                Some(Value::Boolean(true)) => Value::Unit,
+                Some(Value::Boolean(false)) => {
+                    let msg = args.get(1)
+                        .map(|v| v.to_display_string())
+                        .unwrap_or_else(|| "assertion failed".to_string());
+                    self.stdout.push_str(&format!("ASSERTION FAILED: {msg}\n"));
+                    Value::Unit
+                }
+                _ => Value::Unit,
+            },
+            "std::error::panic" => {
+                let msg = args.first()
+                    .map(|v| v.to_display_string())
+                    .unwrap_or_else(|| "panic".to_string());
+                return Err(InterpreterError::TypeError {
+                    node_id: _id.to_string(),
+                    message: format!("panic: {msg}"),
+                });
+            }
+
             // File I/O
             "std::io::read_file" => match args.first() {
                 Some(Value::Str(path)) => match std::fs::read_to_string(path) {

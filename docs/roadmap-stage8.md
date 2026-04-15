@@ -2,9 +2,9 @@
 
 All 7 original stages are complete. This roadmap defines the next priorities.
 
-**Current test count: 177 tests passing** (up from 146 at stage 7 completion).
+**Current test count: 210 tests passing** (up from 146 at stage 7 completion).
 
-**All 7 priorities complete.**
+**All 7 priorities complete, plus: extended JIT builtins, property tests, benchmarks, error handling, REPL, golden tests.**
 
 ---
 
