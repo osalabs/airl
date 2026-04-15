@@ -71,7 +71,7 @@ mod tests {
     }
 
     fn compile_and_assert(json: &str, expected: &str) {
-        let _lock = TEST_LOCK.lock().unwrap();
+        let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let module = load_module(json);
         let output = compile_and_run(&module).unwrap();
         assert_eq!(output.stdout, expected);
@@ -259,6 +259,47 @@ mod tests {
         let body = r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Call","type":"I64","target":"fib","args":[{"id":"n3","kind":"Literal","type":"I64","value":10}]}]}"#;
         let fib = r#"{"id":"f_fib","name":"fib","params":[{"name":"n","type":"I64","index":0}],"returns":"I64","effects":["Pure"],"body":{"id":"f1","kind":"If","type":"I64","cond":{"id":"f2","kind":"BinOp","type":"Bool","op":"Lte","lhs":{"id":"f3","kind":"Param","type":"I64","name":"n","index":0},"rhs":{"id":"f4","kind":"Literal","type":"I64","value":1}},"then_branch":{"id":"f5","kind":"Param","type":"I64","name":"n","index":0},"else_branch":{"id":"f6","kind":"BinOp","type":"I64","op":"Add","lhs":{"id":"f7","kind":"Call","type":"I64","target":"fib","args":[{"id":"f8","kind":"BinOp","type":"I64","op":"Sub","lhs":{"id":"f9","kind":"Param","type":"I64","name":"n","index":0},"rhs":{"id":"f10","kind":"Literal","type":"I64","value":1}}]},"rhs":{"id":"f11","kind":"Call","type":"I64","target":"fib","args":[{"id":"f12","kind":"BinOp","type":"I64","op":"Sub","lhs":{"id":"f13","kind":"Param","type":"I64","name":"n","index":0},"rhs":{"id":"f14","kind":"Literal","type":"I64","value":2}}]}}}}"#;
         let json = wrap_with_functions(body, fib);
+        let module = load_module(&json);
+        let wasm_bytes = crate::wasm::compile_to_wasm(&module).unwrap();
+        wasmparser::validate(&wasm_bytes).expect("generated WASM should be valid");
+    }
+
+    // --- JIT Match compilation test ---
+
+    #[test]
+    fn test_compile_match_literal() {
+        // match 2 { 1 => 10, 2 => 20, _ => 0 } => should return 20
+        let body = r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Match","type":"I64","scrutinee":{"id":"n3","kind":"Literal","type":"I64","value":2},"arms":[{"pattern":{"kind":"Literal","value":1},"body":{"id":"a1","kind":"Literal","type":"I64","value":10}},{"pattern":{"kind":"Literal","value":2},"body":{"id":"a2","kind":"Literal","type":"I64","value":20}},{"pattern":{"kind":"Wildcard"},"body":{"id":"a3","kind":"Literal","type":"I64","value":0}}]}]}"#;
+        compile_and_assert(&wrap_main(body), "20\n");
+    }
+
+    // --- JIT fizzbuzz compilation test (uses string handles) ---
+
+    #[test]
+    fn test_compile_fizzbuzz_example() {
+        let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let json = std::fs::read_to_string("../../../examples/fizzbuzz.airl.json")
+            .unwrap_or_else(|_| {
+                include_str!("../../../examples/fizzbuzz.airl.json").to_string()
+            });
+        let module = load_module(&json);
+        let output = compile_and_run(&module).unwrap();
+        // FizzBuzz 1-20: first lines should be 1, 2, Fizz, 4, Buzz, Fizz, ...
+        let expected_start = "1\n2\nFizz\n4\nBuzz\nFizz\n";
+        assert!(
+            output.stdout.starts_with(expected_start),
+            "unexpected fizzbuzz output (first 200 chars): {:?}",
+            &output.stdout[..output.stdout.len().min(200)]
+        );
+        assert!(output.stdout.contains("FizzBuzz\n"));
+    }
+
+    // --- WASM Match test ---
+
+    #[test]
+    fn test_wasm_match() {
+        let body = r#"{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println","args":[{"id":"n2","kind":"Match","type":"I64","scrutinee":{"id":"n3","kind":"Literal","type":"I64","value":2},"arms":[{"pattern":{"kind":"Literal","value":1},"body":{"id":"a1","kind":"Literal","type":"I64","value":10}},{"pattern":{"kind":"Literal","value":2},"body":{"id":"a2","kind":"Literal","type":"I64","value":20}},{"pattern":{"kind":"Wildcard"},"body":{"id":"a3","kind":"Literal","type":"I64","value":0}}]}]}"#;
+        let json = wrap_main(body);
         let module = load_module(&json);
         let wasm_bytes = crate::wasm::compile_to_wasm(&module).unwrap();
         wasmparser::validate(&wasm_bytes).expect("generated WASM should be valid");

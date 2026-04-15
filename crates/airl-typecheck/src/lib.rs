@@ -352,8 +352,8 @@ impl TypeChecker {
             "std::array::len".into(),
             FuncSig {
                 params: vec![Type::Array {
-                    element: Box::new(Type::I64),
-                }], // generic placeholder
+                    element: Box::new(Type::Unit),
+                }], // generic: accepts any array
                 returns: Type::I64,
                 effects: vec![Effect::Pure],
             },
@@ -362,14 +362,10 @@ impl TypeChecker {
             "std::array::push".into(),
             FuncSig {
                 params: vec![
-                    Type::Array {
-                        element: Box::new(Type::I64),
-                    },
-                    Type::I64,
+                    Type::Array { element: Box::new(Type::Unit) },
+                    Type::Unit, // accepts any element
                 ],
-                returns: Type::Array {
-                    element: Box::new(Type::I64),
-                },
+                returns: Type::Array { element: Box::new(Type::Unit) },
                 effects: vec![Effect::Pure],
             },
         );
@@ -377,10 +373,10 @@ impl TypeChecker {
             "std::array::get".into(),
             FuncSig {
                 params: vec![
-                    Type::Array { element: Box::new(Type::I64) },
+                    Type::Array { element: Box::new(Type::Unit) },
                     Type::I64,
                 ],
-                returns: Type::I64,
+                returns: Type::Unit, // returns element of any type
                 effects: vec![Effect::Pure],
             },
         );
@@ -388,11 +384,11 @@ impl TypeChecker {
             "std::array::slice".into(),
             FuncSig {
                 params: vec![
-                    Type::Array { element: Box::new(Type::I64) },
+                    Type::Array { element: Box::new(Type::Unit) },
                     Type::I64,
                     Type::I64,
                 ],
-                returns: Type::Array { element: Box::new(Type::I64) },
+                returns: Type::Array { element: Box::new(Type::Unit) },
                 effects: vec![Effect::Pure],
             },
         );
@@ -400,8 +396,8 @@ impl TypeChecker {
             "std::array::contains".into(),
             FuncSig {
                 params: vec![
-                    Type::Array { element: Box::new(Type::I64) },
-                    Type::I64,
+                    Type::Array { element: Box::new(Type::Unit) },
+                    Type::Unit,
                 ],
                 returns: Type::Bool,
                 effects: vec![Effect::Pure],
@@ -410,8 +406,8 @@ impl TypeChecker {
         b.insert(
             "std::array::reverse".into(),
             FuncSig {
-                params: vec![Type::Array { element: Box::new(Type::I64) }],
-                returns: Type::Array { element: Box::new(Type::I64) },
+                params: vec![Type::Array { element: Box::new(Type::Unit) }],
+                returns: Type::Array { element: Box::new(Type::Unit) },
                 effects: vec![Effect::Pure],
             },
         );
@@ -419,7 +415,7 @@ impl TypeChecker {
             "std::array::join".into(),
             FuncSig {
                 params: vec![
-                    Type::Array { element: Box::new(Type::String) },
+                    Type::Array { element: Box::new(Type::Unit) },
                     Type::String,
                 ],
                 returns: Type::String,
@@ -430,7 +426,7 @@ impl TypeChecker {
             "std::array::range".into(),
             FuncSig {
                 params: vec![Type::I64, Type::I64],
-                returns: Type::Array { element: Box::new(Type::I64) },
+                returns: Type::Array { element: Box::new(Type::Unit) },
                 effects: vec![Effect::Pure],
             },
         );
@@ -1047,6 +1043,10 @@ impl TypeChecker {
 /// Check if two types are compatible (equal, or one is a Named type that we accept loosely).
 fn types_compatible(a: &Type, b: &Type) -> bool {
     if a == b {
+        return true;
+    }
+    // Unit acts as a wildcard "any" type (used by dynamic builtins like collections/JSON)
+    if matches!(a, Type::Unit) || matches!(b, Type::Unit) {
         return true;
     }
     // Named types are loosely compatible with anything (we don't have full struct defs yet)

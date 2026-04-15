@@ -136,15 +136,200 @@ impl<'a> WasmCompiler<'a> {
 
         // Assign function indices
         // Import: fd_write is index 0
+        // Internal: __print_i64 is index 1
         self.import_count = 1;
+        let internal_helper_count = 1u32; // __print_i64
 
-        // User functions
+        // User functions start after imports + internal helpers
+        let user_func_base = self.import_count + internal_helper_count;
         for (i, func) in self.module.functions().iter().enumerate() {
             self.func_indices
-                .insert(func.name.clone(), self.import_count + i as u32);
+                .insert(func.name.clone(), user_func_base + i as u32);
         }
 
         Ok(())
+    }
+
+    /// Build the internal `__print_i64` WASM function.
+    /// Memory layout for scratch: offset 16..48 (32 bytes for digits).
+    /// Algorithm: convert i64 to decimal string right-to-left, then fd_write.
+    fn build_print_i64_func(&self) -> Function {
+        // Locals: val (param 0), is_neg, digit_count, scratch_pos, digit, quotient
+        // We need 5 extra locals (i64) beyond the parameter
+        let mut f = Function::new(vec![(5, ValType::I64), (2, ValType::I32)]);
+
+        // Local indices:
+        // 0: val (param, i64)
+        // 1: is_neg (i64)
+        // 2: digit_count (i64)
+        // 3: scratch_end = 48 (i64, constant)
+        // 4: current_pos (i64)
+        // 5: temp (i64)
+        // 6: fd_write result (i32)
+        // 7: temp i32
+
+        let val = 0u32;
+        let is_neg = 1u32;
+        let digit_count = 2u32;
+        let current_pos = 4u32;
+        let temp64 = 5u32;
+
+        // Handle zero case
+        f.instruction(&Instruction::LocalGet(val));
+        f.instruction(&Instruction::I64Eqz);
+        f.instruction(&Instruction::If(wasm_encoder::BlockType::Empty));
+        {
+            // Store '0' at offset 47
+            f.instruction(&Instruction::I32Const(47));
+            f.instruction(&Instruction::I32Const(48)); // '0' = 48
+            f.instruction(&Instruction::I32Store8(wasm_encoder::MemArg {
+                offset: 0, align: 0, memory_index: 0,
+            }));
+            // Write iov: ptr=47, len=1
+            f.instruction(&Instruction::I32Const(0));
+            f.instruction(&Instruction::I32Const(47));
+            f.instruction(&Instruction::I32Store(wasm_encoder::MemArg {
+                offset: 0, align: 2, memory_index: 0,
+            }));
+            f.instruction(&Instruction::I32Const(4));
+            f.instruction(&Instruction::I32Const(1));
+            f.instruction(&Instruction::I32Store(wasm_encoder::MemArg {
+                offset: 0, align: 2, memory_index: 0,
+            }));
+            f.instruction(&Instruction::I32Const(1)); // fd=stdout
+            f.instruction(&Instruction::I32Const(0)); // iovs
+            f.instruction(&Instruction::I32Const(1)); // iovs_len
+            f.instruction(&Instruction::I32Const(8)); // nwritten
+            f.instruction(&Instruction::Call(0));       // fd_write
+            f.instruction(&Instruction::Drop);
+            f.instruction(&Instruction::Return);
+        }
+        f.instruction(&Instruction::End);
+
+        // Check if negative
+        f.instruction(&Instruction::I64Const(0));
+        f.instruction(&Instruction::LocalSet(is_neg));
+        f.instruction(&Instruction::LocalGet(val));
+        f.instruction(&Instruction::I64Const(0));
+        f.instruction(&Instruction::I64LtS);
+        f.instruction(&Instruction::If(wasm_encoder::BlockType::Empty));
+        {
+            f.instruction(&Instruction::I64Const(1));
+            f.instruction(&Instruction::LocalSet(is_neg));
+            // val = -val
+            f.instruction(&Instruction::I64Const(0));
+            f.instruction(&Instruction::LocalGet(val));
+            f.instruction(&Instruction::I64Sub);
+            f.instruction(&Instruction::LocalSet(val));
+        }
+        f.instruction(&Instruction::End);
+
+        // current_pos = 47 (write digits right-to-left into memory[16..48])
+        f.instruction(&Instruction::I64Const(47));
+        f.instruction(&Instruction::LocalSet(current_pos));
+
+        // digit_count = 0
+        f.instruction(&Instruction::I64Const(0));
+        f.instruction(&Instruction::LocalSet(digit_count));
+
+        // Loop: extract digits
+        f.instruction(&Instruction::Block(wasm_encoder::BlockType::Empty));
+        f.instruction(&Instruction::Loop(wasm_encoder::BlockType::Empty));
+        {
+            // digit = val % 10
+            f.instruction(&Instruction::LocalGet(val));
+            f.instruction(&Instruction::I64Const(10));
+            f.instruction(&Instruction::I64RemU);
+            f.instruction(&Instruction::LocalSet(temp64));
+
+            // memory[current_pos] = digit + '0'
+            f.instruction(&Instruction::LocalGet(current_pos));
+            f.instruction(&Instruction::I32WrapI64);
+            f.instruction(&Instruction::LocalGet(temp64));
+            f.instruction(&Instruction::I64Const(48)); // '0'
+            f.instruction(&Instruction::I64Add);
+            f.instruction(&Instruction::I32WrapI64);
+            f.instruction(&Instruction::I32Store8(wasm_encoder::MemArg {
+                offset: 0, align: 0, memory_index: 0,
+            }));
+
+            // current_pos--
+            f.instruction(&Instruction::LocalGet(current_pos));
+            f.instruction(&Instruction::I64Const(1));
+            f.instruction(&Instruction::I64Sub);
+            f.instruction(&Instruction::LocalSet(current_pos));
+
+            // digit_count++
+            f.instruction(&Instruction::LocalGet(digit_count));
+            f.instruction(&Instruction::I64Const(1));
+            f.instruction(&Instruction::I64Add);
+            f.instruction(&Instruction::LocalSet(digit_count));
+
+            // val = val / 10
+            f.instruction(&Instruction::LocalGet(val));
+            f.instruction(&Instruction::I64Const(10));
+            f.instruction(&Instruction::I64DivU);
+            f.instruction(&Instruction::LocalSet(val));
+
+            // if val > 0, continue loop
+            f.instruction(&Instruction::LocalGet(val));
+            f.instruction(&Instruction::I64Const(0));
+            f.instruction(&Instruction::I64GtU);
+            f.instruction(&Instruction::BrIf(0)); // branch to loop
+        }
+        f.instruction(&Instruction::End); // end loop
+        f.instruction(&Instruction::End); // end block
+
+        // If negative, prepend '-'
+        f.instruction(&Instruction::LocalGet(is_neg));
+        f.instruction(&Instruction::I64Const(1));
+        f.instruction(&Instruction::I64Eq);
+        f.instruction(&Instruction::If(wasm_encoder::BlockType::Empty));
+        {
+            f.instruction(&Instruction::LocalGet(current_pos));
+            f.instruction(&Instruction::I32WrapI64);
+            f.instruction(&Instruction::I32Const(45)); // '-'
+            f.instruction(&Instruction::I32Store8(wasm_encoder::MemArg {
+                offset: 0, align: 0, memory_index: 0,
+            }));
+            f.instruction(&Instruction::LocalGet(current_pos));
+            f.instruction(&Instruction::I64Const(1));
+            f.instruction(&Instruction::I64Sub);
+            f.instruction(&Instruction::LocalSet(current_pos));
+            f.instruction(&Instruction::LocalGet(digit_count));
+            f.instruction(&Instruction::I64Const(1));
+            f.instruction(&Instruction::I64Add);
+            f.instruction(&Instruction::LocalSet(digit_count));
+        }
+        f.instruction(&Instruction::End);
+
+        // Set up iov: ptr = current_pos + 1, len = digit_count
+        f.instruction(&Instruction::I32Const(0)); // iov[0].buf addr
+        f.instruction(&Instruction::LocalGet(current_pos));
+        f.instruction(&Instruction::I64Const(1));
+        f.instruction(&Instruction::I64Add);
+        f.instruction(&Instruction::I32WrapI64);
+        f.instruction(&Instruction::I32Store(wasm_encoder::MemArg {
+            offset: 0, align: 2, memory_index: 0,
+        }));
+
+        f.instruction(&Instruction::I32Const(4)); // iov[0].len addr
+        f.instruction(&Instruction::LocalGet(digit_count));
+        f.instruction(&Instruction::I32WrapI64);
+        f.instruction(&Instruction::I32Store(wasm_encoder::MemArg {
+            offset: 0, align: 2, memory_index: 0,
+        }));
+
+        // fd_write(1, 0, 1, 8)
+        f.instruction(&Instruction::I32Const(1));
+        f.instruction(&Instruction::I32Const(0));
+        f.instruction(&Instruction::I32Const(1));
+        f.instruction(&Instruction::I32Const(8));
+        f.instruction(&Instruction::Call(0));
+        f.instruction(&Instruction::Drop);
+
+        f.instruction(&Instruction::End);
+        f
     }
 
     fn finish(&self) -> Vec<u8> {
@@ -160,10 +345,13 @@ impl<'a> WasmCompiler<'a> {
             vec![ValType::I32],
         );
 
-        // Type indices for user functions start at 1
+        // Type 1: __print_i64(val: i64) -> void
+        types.ty().function(vec![ValType::I64], vec![]);
+
+        // Type indices for user functions start at 2
         let mut func_type_map: HashMap<String, u32> = HashMap::new();
         for (i, func) in self.module.functions().iter().enumerate() {
-            let type_idx = (i + 1) as u32;
+            let type_idx = (i + 2) as u32;
             let params: Vec<ValType> = func.params.iter().map(|_| ValType::I64).collect();
             let results: Vec<ValType> = if matches!(func.returns, Type::Unit) {
                 vec![]
@@ -183,6 +371,9 @@ impl<'a> WasmCompiler<'a> {
 
         // --- Function section ---
         let mut functions = FunctionSection::new();
+        // Internal helper: __print_i64 (type 1)
+        functions.function(1);
+        // User functions
         for func in self.module.functions() {
             let type_idx = func_type_map[&func.name];
             functions.function(type_idx);
@@ -213,6 +404,10 @@ impl<'a> WasmCompiler<'a> {
 
         // --- Code section ---
         let mut codes = CodeSection::new();
+        // Internal helper: __print_i64
+        let print_i64_func = self.build_print_i64_func();
+        codes.function(&print_i64_func);
+        // User functions
         for func in self.module.functions() {
             let wasm_func = self.compile_function(func);
             codes.function(&wasm_func);
@@ -414,6 +609,95 @@ impl<'a> WasmCompiler<'a> {
                 self.emit_node(result, f, locals, local_count, func_def);
             }
 
+            Node::Loop { body, node_type, .. } => {
+                let block_type = if matches!(node_type, Type::Unit) {
+                    wasm_encoder::BlockType::Empty
+                } else {
+                    wasm_encoder::BlockType::Result(ValType::I64)
+                };
+                // WASM loop: block { loop { body; br loop; } }
+                f.instruction(&Instruction::Block(block_type));
+                f.instruction(&Instruction::Loop(wasm_encoder::BlockType::Empty));
+                self.emit_node(body, f, locals, local_count, func_def);
+                // Branch back to the loop header (index 0 = inner loop)
+                f.instruction(&Instruction::Br(0));
+                f.instruction(&Instruction::End); // end loop
+                f.instruction(&Instruction::End); // end block
+                // If non-unit type needed, push default
+                if !matches!(node_type, Type::Unit) {
+                    f.instruction(&Instruction::I64Const(0));
+                }
+            }
+
+            Node::Match {
+                scrutinee,
+                arms,
+                node_type,
+                ..
+            } => {
+                use airl_ir::node::Pattern;
+
+                // Evaluate scrutinee into a local
+                self.emit_node(scrutinee, f, locals, local_count, func_def);
+                let scrut_local = *local_count;
+                *local_count += 1;
+                f.instruction(&Instruction::LocalSet(scrut_local));
+
+                // Result local (for non-unit matches)
+                let result_local = *local_count;
+                *local_count += 1;
+                f.instruction(&Instruction::I64Const(0));
+                f.instruction(&Instruction::LocalSet(result_local));
+
+                // Use a block with nested if/else for each arm
+                // Strategy: check each literal arm; if matched, set result and br out
+                let num_literal_arms = arms.iter().filter(|a| matches!(a.pattern, Pattern::Literal { .. })).count();
+                let _ = num_literal_arms;
+
+                // Outer block to break out of
+                f.instruction(&Instruction::Block(wasm_encoder::BlockType::Empty));
+
+                for arm in arms.iter() {
+                    match &arm.pattern {
+                        Pattern::Literal { value } => {
+                            f.instruction(&Instruction::LocalGet(scrut_local));
+                            match value {
+                                LiteralValue::Integer(n) => {
+                                    f.instruction(&Instruction::I64Const(*n));
+                                }
+                                LiteralValue::Boolean(b) => {
+                                    f.instruction(&Instruction::I64Const(if *b { 1 } else { 0 }));
+                                }
+                                _ => {
+                                    f.instruction(&Instruction::I64Const(0));
+                                }
+                            }
+                            f.instruction(&Instruction::I64Eq);
+                            f.instruction(&Instruction::If(wasm_encoder::BlockType::Empty));
+                            self.emit_node(&arm.body, f, locals, local_count, func_def);
+                            f.instruction(&Instruction::LocalSet(result_local));
+                            f.instruction(&Instruction::Br(1)); // break out of outer block
+                            f.instruction(&Instruction::End); // end if
+                        }
+                        Pattern::Wildcard | Pattern::Variable { .. } => {
+                            if let Pattern::Variable { name } = &arm.pattern {
+                                locals.insert(name.clone(), scrut_local);
+                            }
+                            self.emit_node(&arm.body, f, locals, local_count, func_def);
+                            f.instruction(&Instruction::LocalSet(result_local));
+                            // No need to br — this is the default
+                        }
+                    }
+                }
+
+                f.instruction(&Instruction::End); // end outer block
+
+                // Push result
+                if !matches!(node_type, Type::Unit) {
+                    f.instruction(&Instruction::LocalGet(result_local));
+                }
+            }
+
             _ => {
                 // Unsupported node - push 0
                 f.instruction(&Instruction::I64Const(0));
@@ -441,11 +725,9 @@ impl<'a> WasmCompiler<'a> {
                     }
                 }
                 _ => {
-                    // For non-string args, we'd need itoa in WASM which is complex.
-                    // For now, emit the argument and use a simplified approach:
-                    // just emit the value computation (it stays on stack, but we need to print it)
+                    // Emit the argument, then call __print_i64 (func index 1)
                     self.emit_node(arg, f, locals, local_count, func_def);
-                    f.instruction(&Instruction::Drop); // can't easily print i64 in WASI without itoa
+                    f.instruction(&Instruction::Call(1)); // __print_i64
                 }
             }
         }
@@ -563,6 +845,19 @@ fn count_let_bindings(node: &Node, count: &mut u32) {
                 count_let_bindings(s, count);
             }
             count_let_bindings(result, count);
+        }
+        Node::Match {
+            scrutinee, arms, ..
+        } => {
+            // Match needs 2 extra locals: scrutinee + result
+            *count += 2;
+            count_let_bindings(scrutinee, count);
+            for arm in arms {
+                count_let_bindings(&arm.body, count);
+            }
+        }
+        Node::Loop { body, .. } => {
+            count_let_bindings(body, count);
         }
         _ => {}
     }

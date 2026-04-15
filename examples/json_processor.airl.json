@@ -1,0 +1,59 @@
+{
+  "format_version": "0.1.0",
+  "module": {
+    "id": "mod_main",
+    "name": "main",
+    "metadata": {
+      "version": "1.0.0",
+      "description": "JSON processor: parse, transform, serialize",
+      "author": "agent-001",
+      "created_at": "2026-04-15T12:00:00Z"
+    },
+    "imports": [],
+    "exports": [{"kind": "Function", "name": "main"}],
+    "types": [],
+    "functions": [
+      {
+        "id": "f_main",
+        "name": "main",
+        "params": [],
+        "returns": "Unit",
+        "effects": ["IO"],
+        "body": {
+          "id": "m_1", "kind": "Block", "type": "Unit",
+          "statements": [
+            {
+              "id": "s1", "kind": "Let", "type": "Unit", "name": "data",
+              "value": {"id": "v1", "kind": "Call", "type": "Unit", "target": "std::json::parse",
+                "args": [{"id": "v2", "kind": "Literal", "type": "String", "value": "{\"name\":\"AIRL\",\"version\":1,\"features\":[\"interpret\",\"compile\",\"wasm\"]}"}]},
+              "body": {"id": "b1", "kind": "Block", "type": "Unit",
+                "statements": [
+                  {
+                    "id": "s2", "kind": "Call", "type": "Unit", "target": "std::io::println",
+                    "args": [{"id": "a2", "kind": "Literal", "type": "String", "value": "=== JSON Processor ==="}]
+                  },
+                  {
+                    "id": "s3", "kind": "Call", "type": "Unit", "target": "std::io::println",
+                    "args": [{"id": "a3", "kind": "Call", "type": "String", "target": "std::json::serialize",
+                      "args": [{"id": "a4", "kind": "Param", "type": "Unit", "name": "data", "index": 0}]}]
+                  },
+                  {
+                    "id": "s4", "kind": "Call", "type": "Unit", "target": "std::io::println",
+                    "args": [{"id": "a5", "kind": "Literal", "type": "String", "value": "--- Pretty ---"}]
+                  },
+                  {
+                    "id": "s5", "kind": "Call", "type": "Unit", "target": "std::io::println",
+                    "args": [{"id": "a6", "kind": "Call", "type": "String", "target": "std::json::serialize_pretty",
+                      "args": [{"id": "a7", "kind": "Param", "type": "Unit", "name": "data", "index": 0}]}]
+                  }
+                ],
+                "result": {"id": "end", "kind": "Literal", "type": "Unit", "value": null}
+              }
+            }
+          ],
+          "result": {"id": "m_end", "kind": "Literal", "type": "Unit", "value": null}
+        }
+      }
+    ]
+  }
+}
