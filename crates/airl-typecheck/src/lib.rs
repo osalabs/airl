@@ -692,6 +692,24 @@ impl TypeChecker {
             },
         );
 
+        // HTTP client
+        b.insert(
+            "std::net::http_get".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::Unit, // returns Map {status, body, error?}
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::net::http_post".into(),
+            FuncSig {
+                params: vec![Type::String, Type::String],
+                returns: Type::Unit, // returns Map {status, body, error?}
+                effects: vec![Effect::IO],
+            },
+        );
+
         // Process
         b.insert(
             "std::process::exit".into(),

@@ -908,6 +908,65 @@ impl<'a> Interpreter<'a> {
                 }
             },
 
+            // HTTP client (ureq 2.x API)
+            "std::net::http_get" => match args.first() {
+                Some(Value::Str(url)) => match ureq::get(url).call() {
+                    Ok(resp) => {
+                        let status = resp.status() as i64;
+                        let body = resp.into_string().unwrap_or_default();
+                        let mut result = BTreeMap::new();
+                        result.insert("status".to_string(), Value::Integer(status));
+                        result.insert("body".to_string(), Value::Str(body));
+                        Value::Map(result)
+                    }
+                    Err(ureq::Error::Status(code, resp)) => {
+                        let body = resp.into_string().unwrap_or_default();
+                        let mut result = BTreeMap::new();
+                        result.insert("status".to_string(), Value::Integer(code as i64));
+                        result.insert("body".to_string(), Value::Str(body));
+                        Value::Map(result)
+                    }
+                    Err(e) => {
+                        let mut result = BTreeMap::new();
+                        result.insert("status".to_string(), Value::Integer(0));
+                        result.insert("error".to_string(), Value::Str(e.to_string()));
+                        Value::Map(result)
+                    }
+                },
+                _ => Value::Unit,
+            },
+            "std::net::http_post" => match (args.first(), args.get(1)) {
+                (Some(Value::Str(url)), Some(Value::Str(body))) => {
+                    match ureq::post(url)
+                        .set("Content-Type", "application/json")
+                        .send_string(body)
+                    {
+                        Ok(resp) => {
+                            let status = resp.status() as i64;
+                            let rbody = resp.into_string().unwrap_or_default();
+                            let mut result = BTreeMap::new();
+                            result.insert("status".to_string(), Value::Integer(status));
+                            result.insert("body".to_string(), Value::Str(rbody));
+                            Value::Map(result)
+                        }
+                        Err(ureq::Error::Status(code, resp)) => {
+                            let rbody = resp.into_string().unwrap_or_default();
+                            let mut result = BTreeMap::new();
+                            result.insert("status".to_string(), Value::Integer(code as i64));
+                            result.insert("body".to_string(), Value::Str(rbody));
+                            Value::Map(result)
+                        }
+                        Err(e) => {
+                            let mut result = BTreeMap::new();
+                            result.insert("status".to_string(), Value::Integer(0));
+                            result.insert("error".to_string(), Value::Str(e.to_string()));
+                            Value::Map(result)
+                        }
+                    }
+                }
+                _ => Value::Unit,
+            },
+
             // File I/O
             "std::io::read_file" => match args.first() {
                 Some(Value::Str(path)) => match std::fs::read_to_string(path) {
