@@ -2,17 +2,19 @@
 //!
 //! Uses a simple deterministic RNG to generate random IR and verify invariants.
 
+use airl_ir::effects::Effect;
+use airl_ir::ids::*;
 use airl_ir::module::*;
 use airl_ir::node::*;
 use airl_ir::types::Type;
-use airl_ir::effects::Effect;
-use airl_ir::ids::*;
 use airl_ir::version::VersionId;
 
 /// Simple deterministic PRNG (xorshift64).
 struct Rng(u64);
 impl Rng {
-    fn new(seed: u64) -> Self { Self(seed) }
+    fn new(seed: u64) -> Self {
+        Self(seed)
+    }
     fn next(&mut self) -> u64 {
         self.0 ^= self.0 << 13;
         self.0 ^= self.0 >> 7;
@@ -27,7 +29,9 @@ impl Rng {
         &items[idx]
     }
     fn string(&mut self, len: usize) -> String {
-        (0..len).map(|_| (b'a' + (self.next() % 26) as u8) as char).collect()
+        (0..len)
+            .map(|_| (b'a' + (self.next() % 26) as u8) as char)
+            .collect()
     }
 }
 
@@ -124,7 +128,11 @@ fn random_module(rng: &mut Rng) -> Module {
     let mut functions = Vec::new();
 
     for i in 0..num_funcs {
-        let name = if i == 0 { "main".to_string() } else { rng.string(5) };
+        let name = if i == 0 {
+            "main".to_string()
+        } else {
+            rng.string(5)
+        };
         let body = random_node(rng, 2);
         let returns = match &body {
             Node::Call { node_type, .. } => node_type.clone(),
@@ -203,12 +211,27 @@ fn prop_version_hash_sensitive() {
 #[test]
 fn prop_type_string_roundtrip() {
     let types = [
-        Type::Unit, Type::Bool, Type::I64, Type::F64, Type::String,
-        Type::I32, Type::U8, Type::Bytes,
-        Type::Array { element: Box::new(Type::I64) },
-        Type::Array { element: Box::new(Type::String) },
-        Type::Optional { inner: Box::new(Type::I64) },
-        Type::Result { ok: Box::new(Type::I64), err: Box::new(Type::String) },
+        Type::Unit,
+        Type::Bool,
+        Type::I64,
+        Type::F64,
+        Type::String,
+        Type::I32,
+        Type::U8,
+        Type::Bytes,
+        Type::Array {
+            element: Box::new(Type::I64),
+        },
+        Type::Array {
+            element: Box::new(Type::String),
+        },
+        Type::Optional {
+            inner: Box::new(Type::I64),
+        },
+        Type::Result {
+            ok: Box::new(Type::I64),
+            err: Box::new(Type::String),
+        },
     ];
     for ty in &types {
         let s = ty.to_type_str();
@@ -220,10 +243,19 @@ fn prop_type_string_roundtrip() {
 #[test]
 fn prop_effect_string_roundtrip() {
     let effects = [
-        Effect::Pure, Effect::IO, Effect::Allocate, Effect::Diverge,
-        Effect::Read { resource: "fs".to_string() },
-        Effect::Write { resource: "net".to_string() },
-        Effect::Fail { error_type: "IOError".to_string() },
+        Effect::Pure,
+        Effect::IO,
+        Effect::Allocate,
+        Effect::Diverge,
+        Effect::Read {
+            resource: "fs".to_string(),
+        },
+        Effect::Write {
+            resource: "net".to_string(),
+        },
+        Effect::Fail {
+            error_type: "IOError".to_string(),
+        },
     ];
     for eff in &effects {
         let s = eff.to_effect_str();

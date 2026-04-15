@@ -16,8 +16,7 @@ use airl_ir::node::{BinOpKind, LiteralValue, Node, UnaryOpKind};
 use airl_ir::types::Type;
 use wasm_encoder::{
     CodeSection, ConstExpr, DataSection, EntityType, ExportKind, ExportSection, Function,
-    FunctionSection, ImportSection, Instruction, MemorySection, MemoryType,
-    TypeSection, ValType,
+    FunctionSection, ImportSection, Instruction, MemorySection, MemoryType, TypeSection, ValType,
 };
 
 use crate::CompileError;
@@ -183,24 +182,30 @@ impl<'a> WasmCompiler<'a> {
             f.instruction(&Instruction::I32Const(47));
             f.instruction(&Instruction::I32Const(48)); // '0' = 48
             f.instruction(&Instruction::I32Store8(wasm_encoder::MemArg {
-                offset: 0, align: 0, memory_index: 0,
+                offset: 0,
+                align: 0,
+                memory_index: 0,
             }));
             // Write iov: ptr=47, len=1
             f.instruction(&Instruction::I32Const(0));
             f.instruction(&Instruction::I32Const(47));
             f.instruction(&Instruction::I32Store(wasm_encoder::MemArg {
-                offset: 0, align: 2, memory_index: 0,
+                offset: 0,
+                align: 2,
+                memory_index: 0,
             }));
             f.instruction(&Instruction::I32Const(4));
             f.instruction(&Instruction::I32Const(1));
             f.instruction(&Instruction::I32Store(wasm_encoder::MemArg {
-                offset: 0, align: 2, memory_index: 0,
+                offset: 0,
+                align: 2,
+                memory_index: 0,
             }));
             f.instruction(&Instruction::I32Const(1)); // fd=stdout
             f.instruction(&Instruction::I32Const(0)); // iovs
             f.instruction(&Instruction::I32Const(1)); // iovs_len
             f.instruction(&Instruction::I32Const(8)); // nwritten
-            f.instruction(&Instruction::Call(0));       // fd_write
+            f.instruction(&Instruction::Call(0)); // fd_write
             f.instruction(&Instruction::Drop);
             f.instruction(&Instruction::Return);
         }
@@ -250,7 +255,9 @@ impl<'a> WasmCompiler<'a> {
             f.instruction(&Instruction::I64Add);
             f.instruction(&Instruction::I32WrapI64);
             f.instruction(&Instruction::I32Store8(wasm_encoder::MemArg {
-                offset: 0, align: 0, memory_index: 0,
+                offset: 0,
+                align: 0,
+                memory_index: 0,
             }));
 
             // current_pos--
@@ -290,7 +297,9 @@ impl<'a> WasmCompiler<'a> {
             f.instruction(&Instruction::I32WrapI64);
             f.instruction(&Instruction::I32Const(45)); // '-'
             f.instruction(&Instruction::I32Store8(wasm_encoder::MemArg {
-                offset: 0, align: 0, memory_index: 0,
+                offset: 0,
+                align: 0,
+                memory_index: 0,
             }));
             f.instruction(&Instruction::LocalGet(current_pos));
             f.instruction(&Instruction::I64Const(1));
@@ -310,14 +319,18 @@ impl<'a> WasmCompiler<'a> {
         f.instruction(&Instruction::I64Add);
         f.instruction(&Instruction::I32WrapI64);
         f.instruction(&Instruction::I32Store(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
 
         f.instruction(&Instruction::I32Const(4)); // iov[0].len addr
         f.instruction(&Instruction::LocalGet(digit_count));
         f.instruction(&Instruction::I32WrapI64);
         f.instruction(&Instruction::I32Store(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
 
         // fd_write(1, 0, 1, 8)
@@ -366,7 +379,11 @@ impl<'a> WasmCompiler<'a> {
 
         // --- Import section ---
         let mut imports = ImportSection::new();
-        imports.import("wasi_snapshot_preview1", "fd_write", EntityType::Function(0));
+        imports.import(
+            "wasi_snapshot_preview1",
+            "fd_write",
+            EntityType::Function(0),
+        );
         wasm_module.section(&imports);
 
         // --- Function section ---
@@ -538,9 +555,7 @@ impl<'a> WasmCompiler<'a> {
                 f.instruction(&Instruction::End);
             }
 
-            Node::Call {
-                target, args, ..
-            } => {
+            Node::Call { target, args, .. } => {
                 if target == "std::io::println" {
                     self.emit_println(args, f, locals, local_count, func_def);
                 } else if let Some(&func_idx) = self.func_indices.get(target.as_str()) {
@@ -609,7 +624,9 @@ impl<'a> WasmCompiler<'a> {
                 self.emit_node(result, f, locals, local_count, func_def);
             }
 
-            Node::Loop { body, node_type, .. } => {
+            Node::Loop {
+                body, node_type, ..
+            } => {
                 let block_type = if matches!(node_type, Type::Unit) {
                     wasm_encoder::BlockType::Empty
                 } else {
@@ -623,7 +640,7 @@ impl<'a> WasmCompiler<'a> {
                 f.instruction(&Instruction::Br(0));
                 f.instruction(&Instruction::End); // end loop
                 f.instruction(&Instruction::End); // end block
-                // If non-unit type needed, push default
+                                                  // If non-unit type needed, push default
                 if !matches!(node_type, Type::Unit) {
                     f.instruction(&Instruction::I64Const(0));
                 }
@@ -651,7 +668,10 @@ impl<'a> WasmCompiler<'a> {
 
                 // Use a block with nested if/else for each arm
                 // Strategy: check each literal arm; if matched, set result and br out
-                let num_literal_arms = arms.iter().filter(|a| matches!(a.pattern, Pattern::Literal { .. })).count();
+                let num_literal_arms = arms
+                    .iter()
+                    .filter(|a| matches!(a.pattern, Pattern::Literal { .. }))
+                    .count();
                 let _ = num_literal_arms;
 
                 // Outer block to break out of
@@ -744,7 +764,7 @@ impl<'a> WasmCompiler<'a> {
         // Write iov to memory at address 0:
         //   iov[0].buf = offset (i32 at addr 0)
         //   iov[0].len = len   (i32 at addr 4)
-        f.instruction(&Instruction::I32Const(0));       // addr for buf ptr
+        f.instruction(&Instruction::I32Const(0)); // addr for buf ptr
         f.instruction(&Instruction::I32Const(offset as i32)); // value
         f.instruction(&Instruction::I32Store(wasm_encoder::MemArg {
             offset: 0,
@@ -752,7 +772,7 @@ impl<'a> WasmCompiler<'a> {
             memory_index: 0,
         }));
 
-        f.instruction(&Instruction::I32Const(4));       // addr for buf len
+        f.instruction(&Instruction::I32Const(4)); // addr for buf len
         f.instruction(&Instruction::I32Const(len as i32)); // value
         f.instruction(&Instruction::I32Store(wasm_encoder::MemArg {
             offset: 0,
@@ -761,21 +781,31 @@ impl<'a> WasmCompiler<'a> {
         }));
 
         // Call fd_write(fd=1, iovs=0, iovs_len=1, nwritten=8)
-        f.instruction(&Instruction::I32Const(1));   // fd: stdout
-        f.instruction(&Instruction::I32Const(0));   // iovs pointer
-        f.instruction(&Instruction::I32Const(1));   // iovs count
-        f.instruction(&Instruction::I32Const(8));   // nwritten pointer
-        f.instruction(&Instruction::Call(0));        // fd_write (import index 0)
-        f.instruction(&Instruction::Drop);           // drop return value
+        f.instruction(&Instruction::I32Const(1)); // fd: stdout
+        f.instruction(&Instruction::I32Const(0)); // iovs pointer
+        f.instruction(&Instruction::I32Const(1)); // iovs count
+        f.instruction(&Instruction::I32Const(8)); // nwritten pointer
+        f.instruction(&Instruction::Call(0)); // fd_write (import index 0)
+        f.instruction(&Instruction::Drop); // drop return value
     }
 
     fn emit_binop(&self, op: &BinOpKind, f: &mut Function) {
         match op {
-            BinOpKind::Add => { f.instruction(&Instruction::I64Add); }
-            BinOpKind::Sub => { f.instruction(&Instruction::I64Sub); }
-            BinOpKind::Mul => { f.instruction(&Instruction::I64Mul); }
-            BinOpKind::Div => { f.instruction(&Instruction::I64DivS); }
-            BinOpKind::Mod => { f.instruction(&Instruction::I64RemS); }
+            BinOpKind::Add => {
+                f.instruction(&Instruction::I64Add);
+            }
+            BinOpKind::Sub => {
+                f.instruction(&Instruction::I64Sub);
+            }
+            BinOpKind::Mul => {
+                f.instruction(&Instruction::I64Mul);
+            }
+            BinOpKind::Div => {
+                f.instruction(&Instruction::I64DivS);
+            }
+            BinOpKind::Mod => {
+                f.instruction(&Instruction::I64RemS);
+            }
             BinOpKind::Eq => {
                 f.instruction(&Instruction::I64Eq);
                 f.instruction(&Instruction::I64ExtendI32U);
@@ -800,11 +830,21 @@ impl<'a> WasmCompiler<'a> {
                 f.instruction(&Instruction::I64GeS);
                 f.instruction(&Instruction::I64ExtendI32U);
             }
-            BinOpKind::And | BinOpKind::BitAnd => { f.instruction(&Instruction::I64And); }
-            BinOpKind::Or | BinOpKind::BitOr => { f.instruction(&Instruction::I64Or); }
-            BinOpKind::BitXor => { f.instruction(&Instruction::I64Xor); }
-            BinOpKind::Shl => { f.instruction(&Instruction::I64Shl); }
-            BinOpKind::Shr => { f.instruction(&Instruction::I64ShrS); }
+            BinOpKind::And | BinOpKind::BitAnd => {
+                f.instruction(&Instruction::I64And);
+            }
+            BinOpKind::Or | BinOpKind::BitOr => {
+                f.instruction(&Instruction::I64Or);
+            }
+            BinOpKind::BitXor => {
+                f.instruction(&Instruction::I64Xor);
+            }
+            BinOpKind::Shl => {
+                f.instruction(&Instruction::I64Shl);
+            }
+            BinOpKind::Shr => {
+                f.instruction(&Instruction::I64ShrS);
+            }
         }
     }
 }
@@ -862,7 +902,13 @@ fn count_let_bindings(node: &Node, count: &mut u32) {
         _ => {}
     }
     // Also count extra locals needed for UnaryOp::Neg
-    if matches!(node, Node::UnaryOp { op: UnaryOpKind::Neg, .. }) {
+    if matches!(
+        node,
+        Node::UnaryOp {
+            op: UnaryOpKind::Neg,
+            ..
+        }
+    ) {
         *count += 1;
     }
 }
@@ -872,7 +918,10 @@ fn leaves_value_on_stack(node: &Node) -> bool {
     match node {
         Node::Call { target, .. } => {
             // println/print return nothing visible
-            !matches!(target.as_str(), "std::io::println" | "std::io::print" | "std::io::eprintln")
+            !matches!(
+                target.as_str(),
+                "std::io::println" | "std::io::print" | "std::io::eprintln"
+            )
         }
         Node::Let { .. } => false, // let bindings use local.set
         _ => false,

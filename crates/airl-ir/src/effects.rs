@@ -130,7 +130,13 @@ mod tests {
 
     #[test]
     fn test_serde_roundtrip() {
-        let effects = vec![Effect::Pure, Effect::IO, Effect::Read { resource: "fs".into() }];
+        let effects = vec![
+            Effect::Pure,
+            Effect::IO,
+            Effect::Read {
+                resource: "fs".into(),
+            },
+        ];
         for e in effects {
             let json = serde_json::to_string(&e).unwrap();
             let parsed: Effect = serde_json::from_str(&json).unwrap();

@@ -14,8 +14,10 @@ static TEST_LOCK: Mutex<()> = Mutex::new(());
 
 fn examples_dir() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent().unwrap()
-        .parent().unwrap()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
         .join("examples")
 }
 
@@ -37,10 +39,15 @@ fn bench_interpreter_speed() {
     let elapsed = start.elapsed();
 
     let ms_per_run = elapsed.as_millis() as f64 / iterations as f64;
-    eprintln!("fibonacci interpreter: {ms_per_run:.2}ms per run ({iterations} iterations in {elapsed:?})");
+    eprintln!(
+        "fibonacci interpreter: {ms_per_run:.2}ms per run ({iterations} iterations in {elapsed:?})"
+    );
 
     // Should be fast — fibonacci with 10 calls is light
-    assert!(ms_per_run < 10.0, "interpreter too slow: {ms_per_run:.2}ms per run");
+    assert!(
+        ms_per_run < 10.0,
+        "interpreter too slow: {ms_per_run:.2}ms per run"
+    );
 }
 
 #[test]
@@ -55,8 +62,7 @@ fn bench_compiler_speed() {
 
     eprintln!(
         "fibonacci compile+run: {:?} (reported compile: {}ms)",
-        elapsed,
-        output.compile_time_ms
+        elapsed, output.compile_time_ms
     );
 
     // Plan target: <2s for 1000-node IR. Fibonacci is small, should be <500ms.
@@ -118,7 +124,9 @@ fn bench_typecheck_speed() {
     let elapsed = start.elapsed();
 
     let us_per_run = elapsed.as_micros() as f64 / iterations as f64;
-    eprintln!("fizzbuzz typecheck: {us_per_run:.1}us per run ({iterations} iterations in {elapsed:?})");
+    eprintln!(
+        "fizzbuzz typecheck: {us_per_run:.1}us per run ({iterations} iterations in {elapsed:?})"
+    );
 
     // Type checking should be very fast
     assert!(us_per_run < 1000.0, "typecheck too slow: {us_per_run:.1}us");
@@ -141,7 +149,10 @@ fn bench_wasm_compilation_speed() {
     eprintln!("fibonacci WASM compile: {ms_per_run:.2}ms per run ({iterations} iterations in {elapsed:?})");
 
     // WASM compilation should be fast (no JIT, just bytecode emission)
-    assert!(ms_per_run < 100.0, "WASM compilation too slow: {ms_per_run:.2}ms");
+    assert!(
+        ms_per_run < 100.0,
+        "WASM compilation too slow: {ms_per_run:.2}ms"
+    );
 }
 
 #[test]
@@ -160,5 +171,8 @@ fn bench_json_roundtrip_speed() {
     let us_per_run = elapsed.as_micros() as f64 / iterations as f64;
     eprintln!("fizzbuzz JSON roundtrip: {us_per_run:.1}us per run ({iterations} iterations in {elapsed:?})");
 
-    assert!(us_per_run < 5000.0, "JSON roundtrip too slow: {us_per_run:.1}us");
+    assert!(
+        us_per_run < 5000.0,
+        "JSON roundtrip too slow: {us_per_run:.1}us"
+    );
 }

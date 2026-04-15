@@ -67,18 +67,42 @@ impl<'a> NodeTreeDisplay<'a> {
     fn write_indented(&self, f: &mut fmt::Formatter<'_>, depth: usize, node: &Node) -> fmt::Result {
         let prefix = "  ".repeat(depth);
         match node {
-            Node::Literal { id, value, node_type, .. } => {
+            Node::Literal {
+                id,
+                value,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] Literal({value:?}) : {node_type}")
             }
-            Node::Param { id, name, node_type, .. } => {
+            Node::Param {
+                id,
+                name,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] Param({name}) : {node_type}")
             }
-            Node::Let { id, name, value, body, node_type, .. } => {
+            Node::Let {
+                id,
+                name,
+                value,
+                body,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] Let {name} : {node_type}")?;
                 self.write_indented(f, depth + 1, value)?;
                 self.write_indented(f, depth + 1, body)
             }
-            Node::If { id, cond, then_branch, else_branch, node_type, .. } => {
+            Node::If {
+                id,
+                cond,
+                then_branch,
+                else_branch,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] If : {node_type}")?;
                 self.write_indented(f, depth + 1, cond)?;
                 writeln!(f, "{prefix}  then:")?;
@@ -86,38 +110,79 @@ impl<'a> NodeTreeDisplay<'a> {
                 writeln!(f, "{prefix}  else:")?;
                 self.write_indented(f, depth + 2, else_branch)
             }
-            Node::Call { id, target, args, node_type, .. } => {
+            Node::Call {
+                id,
+                target,
+                args,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] Call {target} : {node_type}")?;
                 for arg in args {
                     self.write_indented(f, depth + 1, arg)?;
                 }
                 Ok(())
             }
-            Node::Return { id, value, node_type, .. } => {
+            Node::Return {
+                id,
+                value,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] Return : {node_type}")?;
                 self.write_indented(f, depth + 1, value)
             }
-            Node::BinOp { id, op, lhs, rhs, node_type, .. } => {
+            Node::BinOp {
+                id,
+                op,
+                lhs,
+                rhs,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] BinOp({op:?}) : {node_type}")?;
                 self.write_indented(f, depth + 1, lhs)?;
                 self.write_indented(f, depth + 1, rhs)
             }
-            Node::UnaryOp { id, op, operand, node_type, .. } => {
+            Node::UnaryOp {
+                id,
+                op,
+                operand,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] UnaryOp({op:?}) : {node_type}")?;
                 self.write_indented(f, depth + 1, operand)
             }
-            Node::Block { id, statements, result, node_type, .. } => {
+            Node::Block {
+                id,
+                statements,
+                result,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] Block : {node_type}")?;
                 for stmt in statements {
                     self.write_indented(f, depth + 1, stmt)?;
                 }
                 self.write_indented(f, depth + 1, result)
             }
-            Node::Loop { id, body, node_type, .. } => {
+            Node::Loop {
+                id,
+                body,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] Loop : {node_type}")?;
                 self.write_indented(f, depth + 1, body)
             }
-            Node::Match { id, scrutinee, arms, node_type, .. } => {
+            Node::Match {
+                id,
+                scrutinee,
+                arms,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] Match : {node_type}")?;
                 self.write_indented(f, depth + 1, scrutinee)?;
                 for arm in arms {
@@ -126,7 +191,12 @@ impl<'a> NodeTreeDisplay<'a> {
                 }
                 Ok(())
             }
-            Node::StructLiteral { id, fields, node_type, .. } => {
+            Node::StructLiteral {
+                id,
+                fields,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] StructLiteral : {node_type}")?;
                 for (name, val) in fields {
                     writeln!(f, "{prefix}  {name}:")?;
@@ -134,18 +204,35 @@ impl<'a> NodeTreeDisplay<'a> {
                 }
                 Ok(())
             }
-            Node::FieldAccess { id, object, field, node_type, .. } => {
+            Node::FieldAccess {
+                id,
+                object,
+                field,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] FieldAccess .{field} : {node_type}")?;
                 self.write_indented(f, depth + 1, object)
             }
-            Node::ArrayLiteral { id, elements, node_type, .. } => {
+            Node::ArrayLiteral {
+                id,
+                elements,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] ArrayLiteral : {node_type}")?;
                 for elem in elements {
                     self.write_indented(f, depth + 1, elem)?;
                 }
                 Ok(())
             }
-            Node::IndexAccess { id, array, index, node_type, .. } => {
+            Node::IndexAccess {
+                id,
+                array,
+                index,
+                node_type,
+                ..
+            } => {
                 writeln!(f, "{prefix}[{id}] IndexAccess : {node_type}")?;
                 self.write_indented(f, depth + 1, array)?;
                 self.write_indented(f, depth + 1, index)

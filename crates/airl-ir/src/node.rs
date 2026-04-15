@@ -428,8 +428,7 @@ impl Serialize for Node {
                     .iter()
                     .map(|arm| {
                         let body_val = serde_json::to_value(&arm.body).unwrap_or_default();
-                        let pattern_val =
-                            serde_json::to_value(&arm.pattern).unwrap_or_default();
+                        let pattern_val = serde_json::to_value(&arm.pattern).unwrap_or_default();
                         serde_json::json!({
                             "pattern": pattern_val,
                             "body": body_val,
@@ -562,10 +561,7 @@ fn node_from_value(val: &serde_json::Value) -> Result<Node, String> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let index = obj
-                .get("index")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as u32;
+            let index = obj.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
             Ok(Node::Param {
                 id,
                 name,
@@ -579,12 +575,8 @@ fn node_from_value(val: &serde_json::Value) -> Result<Node, String> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let value = obj
-                .get("value")
-                .ok_or("Let missing 'value'")?;
-            let body = obj
-                .get("body")
-                .ok_or("Let missing 'body'")?;
+            let value = obj.get("value").ok_or("Let missing 'value'")?;
+            let body = obj.get("body").ok_or("Let missing 'body'")?;
             Ok(Node::Let {
                 id,
                 name,
@@ -595,12 +587,8 @@ fn node_from_value(val: &serde_json::Value) -> Result<Node, String> {
         }
         "If" => {
             let cond = obj.get("cond").ok_or("If missing 'cond'")?;
-            let then_branch = obj
-                .get("then_branch")
-                .ok_or("If missing 'then_branch'")?;
-            let else_branch = obj
-                .get("else_branch")
-                .ok_or("If missing 'else_branch'")?;
+            let then_branch = obj.get("then_branch").ok_or("If missing 'then_branch'")?;
+            let else_branch = obj.get("else_branch").ok_or("If missing 'else_branch'")?;
             Ok(Node::If {
                 id,
                 node_type,
@@ -662,9 +650,8 @@ fn node_from_value(val: &serde_json::Value) -> Result<Node, String> {
                 .get("op")
                 .and_then(|v| v.as_str())
                 .ok_or("UnaryOp missing 'op'")?;
-            let op: UnaryOpKind =
-                serde_json::from_value(serde_json::Value::String(op_str.into()))
-                    .map_err(|e| format!("Invalid UnaryOp op: {e}"))?;
+            let op: UnaryOpKind = serde_json::from_value(serde_json::Value::String(op_str.into()))
+                .map_err(|e| format!("Invalid UnaryOp op: {e}"))?;
             let operand = obj.get("operand").ok_or("UnaryOp missing 'operand'")?;
             Ok(Node::UnaryOp {
                 id,
@@ -701,17 +688,14 @@ fn node_from_value(val: &serde_json::Value) -> Result<Node, String> {
             })
         }
         "Match" => {
-            let scrutinee = obj
-                .get("scrutinee")
-                .ok_or("Match missing 'scrutinee'")?;
+            let scrutinee = obj.get("scrutinee").ok_or("Match missing 'scrutinee'")?;
             let arms = obj
                 .get("arms")
                 .and_then(|v| v.as_array())
                 .map(|arr| {
                     arr.iter()
                         .map(|arm_val| {
-                            let arm_obj =
-                                arm_val.as_object().ok_or("Match arm must be object")?;
+                            let arm_obj = arm_val.as_object().ok_or("Match arm must be object")?;
                             let pattern: Pattern = arm_obj
                                 .get("pattern")
                                 .map(|v| {
@@ -744,8 +728,9 @@ fn node_from_value(val: &serde_json::Value) -> Result<Node, String> {
                 .map(|arr| {
                     arr.iter()
                         .map(|field_val| {
-                            let field_obj =
-                                field_val.as_object().ok_or("StructLiteral field must be object")?;
+                            let field_obj = field_val
+                                .as_object()
+                                .ok_or("StructLiteral field must be object")?;
                             let name = field_obj
                                 .get("name")
                                 .and_then(|v| v.as_str())
@@ -767,9 +752,7 @@ fn node_from_value(val: &serde_json::Value) -> Result<Node, String> {
             })
         }
         "FieldAccess" => {
-            let object = obj
-                .get("object")
-                .ok_or("FieldAccess missing 'object'")?;
+            let object = obj.get("object").ok_or("FieldAccess missing 'object'")?;
             let field = obj
                 .get("field")
                 .and_then(|v| v.as_str())
@@ -800,12 +783,8 @@ fn node_from_value(val: &serde_json::Value) -> Result<Node, String> {
             })
         }
         "IndexAccess" => {
-            let array = obj
-                .get("array")
-                .ok_or("IndexAccess missing 'array'")?;
-            let index = obj
-                .get("index")
-                .ok_or("IndexAccess missing 'index'")?;
+            let array = obj.get("array").ok_or("IndexAccess missing 'array'")?;
+            let index = obj.get("index").ok_or("IndexAccess missing 'index'")?;
             Ok(Node::IndexAccess {
                 id,
                 node_type,
@@ -844,9 +823,9 @@ impl<'de> Deserialize<'de> for MatchArm {
         D: Deserializer<'de>,
     {
         let val = serde_json::Value::deserialize(deserializer)?;
-        let obj = val.as_object().ok_or_else(|| {
-            serde::de::Error::custom("MatchArm must be a JSON object")
-        })?;
+        let obj = val
+            .as_object()
+            .ok_or_else(|| serde::de::Error::custom("MatchArm must be a JSON object"))?;
         let pattern: Pattern = obj
             .get("pattern")
             .map(|v| serde_json::from_value(v.clone()).map_err(serde::de::Error::custom))
@@ -1158,7 +1137,9 @@ mod tests {
     fn test_array_literal_roundtrip() {
         let node = Node::ArrayLiteral {
             id: NodeId::new("n_1"),
-            node_type: Type::Array { element: Box::new(Type::I64) },
+            node_type: Type::Array {
+                element: Box::new(Type::I64),
+            },
             elements: vec![
                 Node::Literal {
                     id: NodeId::new("n_2"),
@@ -1186,7 +1167,9 @@ mod tests {
                 id: NodeId::new("n_2"),
                 name: "arr".to_string(),
                 index: 0,
-                node_type: Type::Array { element: Box::new(Type::I64) },
+                node_type: Type::Array {
+                    element: Box::new(Type::I64),
+                },
             }),
             index: Box::new(Node::Literal {
                 id: NodeId::new("n_3"),

@@ -33,11 +33,10 @@ pub fn build_router(state: AppState, auth_config: AuthConfig) -> Router {
 
     // Apply auth middleware if tokens are configured
     if auth_config.is_enabled() {
-        api_routes
-            .route_layer(middleware::from_fn_with_state(
-                auth_config,
-                auth::auth_middleware,
-            ))
+        api_routes.route_layer(middleware::from_fn_with_state(
+            auth_config,
+            auth::auth_middleware,
+        ))
     } else {
         api_routes
     }

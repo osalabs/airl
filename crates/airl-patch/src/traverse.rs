@@ -9,10 +9,7 @@ use airl_ir::module::{FuncDef, Module};
 use airl_ir::node::{MatchArm, Node};
 
 /// Find which function contains a node with the given ID.
-pub fn find_containing_function<'a>(
-    module: &'a Module,
-    target: &NodeId,
-) -> Option<&'a FuncDef> {
+pub fn find_containing_function<'a>(module: &'a Module, target: &NodeId) -> Option<&'a FuncDef> {
     module
         .functions()
         .iter()
@@ -24,7 +21,9 @@ pub fn node_contains_id(node: &Node, target: &NodeId) -> bool {
     if node.id() == target {
         return true;
     }
-    children(node).iter().any(|child| node_contains_id(child, target))
+    children(node)
+        .iter()
+        .any(|child| node_contains_id(child, target))
 }
 
 /// Find a node by ID in a tree, returning a reference to it.

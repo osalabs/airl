@@ -61,11 +61,11 @@ fn invert_op(module: &Module, op: &PatchOp) -> Result<PatchOp, PatchError> {
 
         PatchOp::RemoveFunction { func_id } => {
             // Capture the function being removed
-            let func = module.find_function_by_id(func_id).ok_or(
-                PatchError::FunctionNotFound {
+            let func = module
+                .find_function_by_id(func_id)
+                .ok_or(PatchError::FunctionNotFound {
                     func_id: func_id.to_string(),
-                },
-            )?;
+                })?;
             Ok(PatchOp::AddFunction { func: func.clone() })
         }
 

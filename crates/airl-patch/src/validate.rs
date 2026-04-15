@@ -55,8 +55,8 @@ fn validate_op(module: &Module, op: &PatchOp) -> Result<(), PatchError> {
             Ok(())
         }
         // RenameSymbol, AddImport, RemoveImport are always structurally valid
-        PatchOp::RenameSymbol { .. }
-        | PatchOp::AddImport { .. }
-        | PatchOp::RemoveImport { .. } => Ok(()),
+        PatchOp::RenameSymbol { .. } | PatchOp::AddImport { .. } | PatchOp::RemoveImport { .. } => {
+            Ok(())
+        }
     }
 }

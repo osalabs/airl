@@ -243,16 +243,12 @@ fn count_nodes(node: &Node) -> usize {
         Node::UnaryOp { operand, .. } => count_nodes(operand),
         Node::Block {
             statements, result, ..
-        } => {
-            statements.iter().map(count_nodes).sum::<usize>() + count_nodes(result)
-        }
+        } => statements.iter().map(count_nodes).sum::<usize>() + count_nodes(result),
         Node::Loop { body, .. } => count_nodes(body),
         Node::Match {
             scrutinee, arms, ..
         } => count_nodes(scrutinee) + arms.iter().map(|a| count_nodes(&a.body)).sum::<usize>(),
-        Node::StructLiteral { fields, .. } => {
-            fields.iter().map(|(_, n)| count_nodes(n)).sum()
-        }
+        Node::StructLiteral { fields, .. } => fields.iter().map(|(_, n)| count_nodes(n)).sum(),
         Node::FieldAccess { object, .. } => count_nodes(object),
         Node::ArrayLiteral { elements, .. } => elements.iter().map(count_nodes).sum(),
         Node::IndexAccess { array, index, .. } => count_nodes(array) + count_nodes(index),

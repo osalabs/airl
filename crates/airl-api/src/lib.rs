@@ -347,8 +347,7 @@ mod tests {
 
     fn build_auth_router() -> axum::Router {
         let state: AppState = Arc::new(Mutex::new(None));
-        let auth_config =
-            auth::AuthConfig::new(vec!["test-token-123".to_string()]);
+        let auth_config = auth::AuthConfig::new(vec!["test-token-123".to_string()]);
         routes::build_router(state, auth_config)
     }
 
@@ -417,12 +416,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let bytes = resp
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
         // Should start with WASM magic bytes
         assert!(bytes.starts_with(b"\0asm"), "should be valid WASM binary");
         assert!(bytes.len() > 20);

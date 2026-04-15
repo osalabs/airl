@@ -379,10 +379,14 @@ impl TypeChecker {
             "std::array::push".into(),
             FuncSig {
                 params: vec![
-                    Type::Array { element: Box::new(Type::Unit) },
+                    Type::Array {
+                        element: Box::new(Type::Unit),
+                    },
                     Type::Unit, // accepts any element
                 ],
-                returns: Type::Array { element: Box::new(Type::Unit) },
+                returns: Type::Array {
+                    element: Box::new(Type::Unit),
+                },
                 effects: vec![Effect::Pure],
             },
         );
@@ -390,7 +394,9 @@ impl TypeChecker {
             "std::array::get".into(),
             FuncSig {
                 params: vec![
-                    Type::Array { element: Box::new(Type::Unit) },
+                    Type::Array {
+                        element: Box::new(Type::Unit),
+                    },
                     Type::I64,
                 ],
                 returns: Type::Unit, // returns element of any type
@@ -401,11 +407,15 @@ impl TypeChecker {
             "std::array::slice".into(),
             FuncSig {
                 params: vec![
-                    Type::Array { element: Box::new(Type::Unit) },
+                    Type::Array {
+                        element: Box::new(Type::Unit),
+                    },
                     Type::I64,
                     Type::I64,
                 ],
-                returns: Type::Array { element: Box::new(Type::Unit) },
+                returns: Type::Array {
+                    element: Box::new(Type::Unit),
+                },
                 effects: vec![Effect::Pure],
             },
         );
@@ -413,7 +423,9 @@ impl TypeChecker {
             "std::array::contains".into(),
             FuncSig {
                 params: vec![
-                    Type::Array { element: Box::new(Type::Unit) },
+                    Type::Array {
+                        element: Box::new(Type::Unit),
+                    },
                     Type::Unit,
                 ],
                 returns: Type::Bool,
@@ -423,8 +435,12 @@ impl TypeChecker {
         b.insert(
             "std::array::reverse".into(),
             FuncSig {
-                params: vec![Type::Array { element: Box::new(Type::Unit) }],
-                returns: Type::Array { element: Box::new(Type::Unit) },
+                params: vec![Type::Array {
+                    element: Box::new(Type::Unit),
+                }],
+                returns: Type::Array {
+                    element: Box::new(Type::Unit),
+                },
                 effects: vec![Effect::Pure],
             },
         );
@@ -432,7 +448,9 @@ impl TypeChecker {
             "std::array::join".into(),
             FuncSig {
                 params: vec![
-                    Type::Array { element: Box::new(Type::Unit) },
+                    Type::Array {
+                        element: Box::new(Type::Unit),
+                    },
                     Type::String,
                 ],
                 returns: Type::String,
@@ -443,7 +461,9 @@ impl TypeChecker {
             "std::array::range".into(),
             FuncSig {
                 params: vec![Type::I64, Type::I64],
-                returns: Type::Array { element: Box::new(Type::Unit) },
+                returns: Type::Array {
+                    element: Box::new(Type::Unit),
+                },
                 effects: vec![Effect::Pure],
             },
         );
@@ -463,7 +483,9 @@ impl TypeChecker {
             "std::env::args".into(),
             FuncSig {
                 params: vec![],
-                returns: Type::Array { element: Box::new(Type::String) },
+                returns: Type::Array {
+                    element: Box::new(Type::String),
+                },
                 effects: vec![Effect::IO],
             },
         );
@@ -539,7 +561,9 @@ impl TypeChecker {
             "std::collections::keys".into(),
             FuncSig {
                 params: vec![Type::Unit],
-                returns: Type::Array { element: Box::new(Type::String) },
+                returns: Type::Array {
+                    element: Box::new(Type::String),
+                },
                 effects: vec![Effect::Pure],
             },
         );
@@ -547,7 +571,9 @@ impl TypeChecker {
             "std::collections::values".into(),
             FuncSig {
                 params: vec![Type::Unit],
-                returns: Type::Array { element: Box::new(Type::Unit) },
+                returns: Type::Array {
+                    element: Box::new(Type::Unit),
+                },
                 effects: vec![Effect::Pure],
             },
         );
@@ -581,7 +607,9 @@ impl TypeChecker {
             "std::string::chars".into(),
             FuncSig {
                 params: vec![Type::String],
-                returns: Type::Array { element: Box::new(Type::String) },
+                returns: Type::Array {
+                    element: Box::new(Type::String),
+                },
                 effects: vec![Effect::Pure],
             },
         );
@@ -745,7 +773,12 @@ impl TypeChecker {
         });
     }
 
-    fn error_with_hint(&mut self, node_id: &str, message: impl Into<String>, hint: impl Into<String>) {
+    fn error_with_hint(
+        &mut self,
+        node_id: &str,
+        message: impl Into<String>,
+        hint: impl Into<String>,
+    ) {
         self.errors.push(Diagnostic {
             severity: Severity::Error,
             node_id: Some(node_id.to_string()),
@@ -839,10 +872,7 @@ impl TypeChecker {
                 if !types_compatible(&cond_type, &Type::Bool) {
                     self.error(
                         id.as_str(),
-                        format!(
-                            "if condition must be Bool, got {}",
-                            type_name(&cond_type)
-                        ),
+                        format!("if condition must be Bool, got {}", type_name(&cond_type)),
                     );
                 }
                 let then_type = self.check(then_branch);
@@ -927,17 +957,16 @@ impl TypeChecker {
                     // Check effects
                     self.check_effects(id.as_str(), target, &sig.effects);
                 } else {
-                    self.warning(
-                        id.as_str(),
-                        format!("unknown function: {target}"),
-                    );
+                    self.warning(id.as_str(), format!("unknown function: {target}"));
                 }
 
                 node_type.clone()
             }
 
             Node::Return {
-                id: _, node_type, value,
+                id: _,
+                node_type,
+                value,
             } => {
                 self.check(value);
                 node_type.clone()
@@ -955,8 +984,7 @@ impl TypeChecker {
 
                 if !types_compatible(&lhs_type, &rhs_type) {
                     // Allow String + String
-                    if !(matches!(op, BinOpKind::Add)
-                        && types_compatible(&lhs_type, &Type::String))
+                    if !(matches!(op, BinOpKind::Add) && types_compatible(&lhs_type, &Type::String))
                     {
                         self.error(
                             id.as_str(),
@@ -1090,10 +1118,7 @@ impl TypeChecker {
                 // For Named types, we warn but don't error (struct definitions not yet tracked)
                 if let Type::Struct { fields, .. } = &obj_type {
                     if !fields.iter().any(|(name, _)| name.as_str() == field) {
-                        self.error(
-                            id.as_str(),
-                            format!("struct has no field '{field}'"),
-                        );
+                        self.error(id.as_str(), format!("struct has no field '{field}'"));
                     }
                 }
                 node_type.clone()
@@ -1147,10 +1172,7 @@ impl TypeChecker {
                 if !is_integer(&idx_type) {
                     self.error(
                         id.as_str(),
-                        format!(
-                            "array index must be integer, got {}",
-                            type_name(&idx_type)
-                        ),
+                        format!("array index must be integer, got {}", type_name(&idx_type)),
                     );
                 }
                 node_type.clone()
@@ -1263,11 +1285,7 @@ fn types_compatible(a: &Type, b: &Type) -> bool {
         return true;
     }
     // Array types: compare elements
-    if let (
-        Type::Array { element: ea },
-        Type::Array { element: eb },
-    ) = (a, b)
-    {
+    if let (Type::Array { element: ea }, Type::Array { element: eb }) = (a, b) {
         return types_compatible(ea, eb);
     }
     false
@@ -1292,14 +1310,7 @@ fn is_numeric(t: &Type) -> bool {
 fn is_integer(t: &Type) -> bool {
     matches!(
         t,
-        Type::I8
-            | Type::I16
-            | Type::I32
-            | Type::I64
-            | Type::U8
-            | Type::U16
-            | Type::U32
-            | Type::U64
+        Type::I8 | Type::I16 | Type::I32 | Type::I64 | Type::U8 | Type::U16 | Type::U32 | Type::U64
     )
 }
 
@@ -1425,7 +1436,11 @@ mod tests {
         for e in &result.errors {
             eprintln!("  {e}");
         }
-        assert!(result.is_ok(), "expected OK, got {} error(s)", result.errors.len());
+        assert!(
+            result.is_ok(),
+            "expected OK, got {} error(s)",
+            result.errors.len()
+        );
     }
 
     fn check_errors(json: &str) -> Vec<Diagnostic> {

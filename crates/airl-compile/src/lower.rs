@@ -100,7 +100,10 @@ extern "C" fn airl_str_concat(a: i64, b: i64) -> i64 {
 extern "C" fn airl_str_len(handle: i64) -> i64 {
     let lock = JIT_STRINGS.lock().unwrap();
     if let Some(table) = lock.as_ref() {
-        table.get(handle as usize).map(|s| s.len() as i64).unwrap_or(0)
+        table
+            .get(handle as usize)
+            .map(|s| s.len() as i64)
+            .unwrap_or(0)
     } else {
         0
     }
@@ -123,9 +126,16 @@ extern "C" fn airl_str_from_i64(val: i64) -> i64 {
 extern "C" fn airl_str_contains(haystack: i64, needle: i64) -> i64 {
     let lock = JIT_STRINGS.lock().unwrap();
     if let Some(table) = lock.as_ref() {
-        let h = table.get(haystack as usize).map(|s| s.as_str()).unwrap_or("");
+        let h = table
+            .get(haystack as usize)
+            .map(|s| s.as_str())
+            .unwrap_or("");
         let n = table.get(needle as usize).map(|s| s.as_str()).unwrap_or("");
-        if h.contains(n) { 1 } else { 0 }
+        if h.contains(n) {
+            1
+        } else {
+            0
+        }
     } else {
         0
     }
@@ -158,7 +168,9 @@ extern "C" fn airl_str_to_uppercase(handle: i64) -> i64 {
         let idx = table.len();
         table.push(s.to_uppercase());
         idx as i64
-    } else { 0 }
+    } else {
+        0
+    }
 }
 
 extern "C" fn airl_str_to_lowercase(handle: i64) -> i64 {
@@ -168,7 +180,9 @@ extern "C" fn airl_str_to_lowercase(handle: i64) -> i64 {
         let idx = table.len();
         table.push(s.to_lowercase());
         idx as i64
-    } else { 0 }
+    } else {
+        0
+    }
 }
 
 extern "C" fn airl_str_trim(handle: i64) -> i64 {
@@ -178,7 +192,9 @@ extern "C" fn airl_str_trim(handle: i64) -> i64 {
         let idx = table.len();
         table.push(s.trim().to_string());
         idx as i64
-    } else { 0 }
+    } else {
+        0
+    }
 }
 
 extern "C" fn airl_str_replace(haystack: i64, from: i64, to: i64) -> i64 {
@@ -190,25 +206,45 @@ extern "C" fn airl_str_replace(haystack: i64, from: i64, to: i64) -> i64 {
         let idx = table.len();
         table.push(h.replace(&f, &t));
         idx as i64
-    } else { 0 }
+    } else {
+        0
+    }
 }
 
 extern "C" fn airl_str_starts_with(haystack: i64, prefix: i64) -> i64 {
     let lock = JIT_STRINGS.lock().unwrap();
     if let Some(table) = lock.as_ref() {
-        let h = table.get(haystack as usize).map(|s| s.as_str()).unwrap_or("");
+        let h = table
+            .get(haystack as usize)
+            .map(|s| s.as_str())
+            .unwrap_or("");
         let p = table.get(prefix as usize).map(|s| s.as_str()).unwrap_or("");
-        if h.starts_with(p) { 1 } else { 0 }
-    } else { 0 }
+        if h.starts_with(p) {
+            1
+        } else {
+            0
+        }
+    } else {
+        0
+    }
 }
 
 extern "C" fn airl_str_ends_with(haystack: i64, suffix: i64) -> i64 {
     let lock = JIT_STRINGS.lock().unwrap();
     if let Some(table) = lock.as_ref() {
-        let h = table.get(haystack as usize).map(|s| s.as_str()).unwrap_or("");
+        let h = table
+            .get(haystack as usize)
+            .map(|s| s.as_str())
+            .unwrap_or("");
         let s = table.get(suffix as usize).map(|s| s.as_str()).unwrap_or("");
-        if h.ends_with(s) { 1 } else { 0 }
-    } else { 0 }
+        if h.ends_with(s) {
+            1
+        } else {
+            0
+        }
+    } else {
+        0
+    }
 }
 
 /// format(template_handle, arg1, arg2, ...) — variadic via repeated calls
@@ -217,7 +253,10 @@ extern "C" fn airl_fmt_format(template: i64, arg: i64) -> i64 {
     let mut lock = JIT_STRINGS.lock().unwrap();
     if let Some(table) = lock.as_mut() {
         let tmpl = table.get(template as usize).cloned().unwrap_or_default();
-        let a = table.get(arg as usize).cloned().unwrap_or_else(|| arg.to_string());
+        let a = table
+            .get(arg as usize)
+            .cloned()
+            .unwrap_or_else(|| arg.to_string());
         let result = if let Some(pos) = tmpl.find("{}") {
             let mut r = tmpl.clone();
             r.replace_range(pos..pos + 2, &a);
@@ -228,7 +267,9 @@ extern "C" fn airl_fmt_format(template: i64, arg: i64) -> i64 {
         let idx = table.len();
         table.push(result);
         idx as i64
-    } else { 0 }
+    } else {
+        0
+    }
 }
 
 // --- Array runtime functions (operate on serialized arrays via string handles) ---
@@ -242,7 +283,9 @@ extern "C" fn airl_array_range(start: i64, end: i64) -> i64 {
         let idx = table.len();
         table.push(items.join(", "));
         idx as i64
-    } else { 0 }
+    } else {
+        0
+    }
 }
 
 extern "C" fn airl_array_join(arr_handle: i64, sep_handle: i64) -> i64 {
@@ -256,7 +299,9 @@ extern "C" fn airl_array_join(arr_handle: i64, sep_handle: i64) -> i64 {
         let idx = table.len();
         table.push(result);
         idx as i64
-    } else { 0 }
+    } else {
+        0
+    }
 }
 
 extern "C" fn airl_array_reverse(arr_handle: i64) -> i64 {
@@ -268,7 +313,9 @@ extern "C" fn airl_array_reverse(arr_handle: i64) -> i64 {
         let idx = table.len();
         table.push(items.join(", "));
         idx as i64
-    } else { 0 }
+    } else {
+        0
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -343,9 +390,7 @@ pub fn jit_compile_and_run(module: &Module) -> Result<String, CompileError> {
         .map_err(|e| CompileError::ModuleError(e.to_string()))?;
 
     // Get main function pointer
-    let main_id = func_ids
-        .get("main")
-        .ok_or(CompileError::NoMainFunction)?;
+    let main_id = func_ids.get("main").ok_or(CompileError::NoMainFunction)?;
     let main_ptr = jit_module.get_finalized_function(*main_id);
 
     // Set up stdout capture and call main
@@ -486,23 +531,69 @@ impl<'a> JitCompiler<'a> {
         let print_str_id = decl_rt!("airl_print_str", [ptr_type, cl_types::I64], []);
         let println_handle_id = decl_rt!("airl_println_handle", [cl_types::I64], []);
         let print_handle_id = decl_rt!("airl_print_handle", [cl_types::I64], []);
-        let str_concat_id = decl_rt!("airl_str_concat", [cl_types::I64, cl_types::I64], [cl_types::I64]);
+        let str_concat_id = decl_rt!(
+            "airl_str_concat",
+            [cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
         let str_len_id = decl_rt!("airl_str_len", [cl_types::I64], [cl_types::I64]);
         let str_from_i64_id = decl_rt!("airl_str_from_i64", [cl_types::I64], [cl_types::I64]);
-        let str_contains_id = decl_rt!("airl_str_contains", [cl_types::I64, cl_types::I64], [cl_types::I64]);
+        let str_contains_id = decl_rt!(
+            "airl_str_contains",
+            [cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
         let math_abs_id = decl_rt!("airl_math_abs", [cl_types::I64], [cl_types::I64]);
-        let math_max_id = decl_rt!("airl_math_max", [cl_types::I64, cl_types::I64], [cl_types::I64]);
-        let math_min_id = decl_rt!("airl_math_min", [cl_types::I64, cl_types::I64], [cl_types::I64]);
-        let math_pow_id = decl_rt!("airl_math_pow", [cl_types::I64, cl_types::I64], [cl_types::I64]);
-        let str_to_uppercase_id = decl_rt!("airl_str_to_uppercase", [cl_types::I64], [cl_types::I64]);
-        let str_to_lowercase_id = decl_rt!("airl_str_to_lowercase", [cl_types::I64], [cl_types::I64]);
+        let math_max_id = decl_rt!(
+            "airl_math_max",
+            [cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
+        let math_min_id = decl_rt!(
+            "airl_math_min",
+            [cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
+        let math_pow_id = decl_rt!(
+            "airl_math_pow",
+            [cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
+        let str_to_uppercase_id =
+            decl_rt!("airl_str_to_uppercase", [cl_types::I64], [cl_types::I64]);
+        let str_to_lowercase_id =
+            decl_rt!("airl_str_to_lowercase", [cl_types::I64], [cl_types::I64]);
         let str_trim_id = decl_rt!("airl_str_trim", [cl_types::I64], [cl_types::I64]);
-        let str_replace_id = decl_rt!("airl_str_replace", [cl_types::I64, cl_types::I64, cl_types::I64], [cl_types::I64]);
-        let str_starts_with_id = decl_rt!("airl_str_starts_with", [cl_types::I64, cl_types::I64], [cl_types::I64]);
-        let str_ends_with_id = decl_rt!("airl_str_ends_with", [cl_types::I64, cl_types::I64], [cl_types::I64]);
-        let fmt_format_id = decl_rt!("airl_fmt_format", [cl_types::I64, cl_types::I64], [cl_types::I64]);
-        let array_range_id = decl_rt!("airl_array_range", [cl_types::I64, cl_types::I64], [cl_types::I64]);
-        let array_join_id = decl_rt!("airl_array_join", [cl_types::I64, cl_types::I64], [cl_types::I64]);
+        let str_replace_id = decl_rt!(
+            "airl_str_replace",
+            [cl_types::I64, cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
+        let str_starts_with_id = decl_rt!(
+            "airl_str_starts_with",
+            [cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
+        let str_ends_with_id = decl_rt!(
+            "airl_str_ends_with",
+            [cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
+        let fmt_format_id = decl_rt!(
+            "airl_fmt_format",
+            [cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
+        let array_range_id = decl_rt!(
+            "airl_array_range",
+            [cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
+        let array_join_id = decl_rt!(
+            "airl_array_join",
+            [cl_types::I64, cl_types::I64],
+            [cl_types::I64]
+        );
         let array_reverse_id = decl_rt!("airl_array_reverse", [cl_types::I64], [cl_types::I64]);
 
         Ok(Self {
@@ -559,10 +650,13 @@ impl<'a> JitCompiler<'a> {
         let call_conv = self.jit_module.isa().default_call_conv();
         let mut sig = Signature::new(call_conv);
         for param in &func.params {
-            sig.params.push(AbiParam::new(self.airl_type_to_cranelift(&param.param_type)));
+            sig.params.push(AbiParam::new(
+                self.airl_type_to_cranelift(&param.param_type),
+            ));
         }
         if !matches!(func.returns, Type::Unit) {
-            sig.returns.push(AbiParam::new(self.airl_type_to_cranelift(&func.returns)));
+            sig.returns
+                .push(AbiParam::new(self.airl_type_to_cranelift(&func.returns)));
         }
         sig
     }
@@ -660,11 +754,7 @@ impl<'a> JitCompiler<'a> {
                 LiteralValue::Unit => Ok(builder.ins().iconst(cl_types::I64, 0)),
                 LiteralValue::Str(s) => {
                     // Return the string table handle (index)
-                    let idx = self
-                        .string_table
-                        .iter()
-                        .position(|x| x == s)
-                        .unwrap_or(0);
+                    let idx = self.string_table.iter().position(|x| x == s).unwrap_or(0);
                     Ok(builder.ins().iconst(cl_types::I64, idx as i64))
                 }
             },
@@ -707,7 +797,9 @@ impl<'a> JitCompiler<'a> {
                 let merge_block = builder.create_block();
                 let cl_type = self.airl_type_to_cranelift(node_type);
                 builder.append_block_param(merge_block, cl_type);
-                builder.ins().brif(cond_val, then_block, &[], else_block, &[]);
+                builder
+                    .ins()
+                    .brif(cond_val, then_block, &[], else_block, &[]);
 
                 builder.switch_to_block(then_block);
                 builder.seal_block(then_block);
@@ -733,9 +825,7 @@ impl<'a> JitCompiler<'a> {
 
             Node::Return { value, .. } => self.lower_node(value, builder, var_map),
 
-            Node::BinOp {
-                op, lhs, rhs, ..
-            } => {
+            Node::BinOp { op, lhs, rhs, .. } => {
                 let l = self.lower_node(lhs, builder, var_map)?;
                 let r = self.lower_node(rhs, builder, var_map)?;
                 self.lower_binop(op, l, r, builder)
@@ -762,7 +852,9 @@ impl<'a> JitCompiler<'a> {
                 self.lower_node(result, builder, var_map)
             }
 
-            Node::Loop { body, node_type, .. } => {
+            Node::Loop {
+                body, node_type, ..
+            } => {
                 let loop_block = builder.create_block();
                 let exit_block = builder.create_block();
                 let cl_type = self.airl_type_to_cranelift(node_type);
@@ -824,7 +916,9 @@ impl<'a> JitCompiler<'a> {
                             let match_block = builder.create_block();
                             let no_match_block = builder.create_block();
 
-                            builder.ins().brif(cmp, match_block, &[], no_match_block, &[]);
+                            builder
+                                .ins()
+                                .brif(cmp, match_block, &[], no_match_block, &[]);
 
                             builder.switch_to_block(match_block);
                             builder.seal_block(match_block);
@@ -870,9 +964,9 @@ impl<'a> JitCompiler<'a> {
                 Ok(builder.ins().iconst(cl_types::I64, 0))
             }
 
-            Node::Error { message, .. } => {
-                Err(CompileError::CodegenError(format!("IR error node: {message}")))
-            }
+            Node::Error { message, .. } => Err(CompileError::CodegenError(format!(
+                "IR error node: {message}"
+            ))),
         }
     }
 
@@ -886,12 +980,8 @@ impl<'a> JitCompiler<'a> {
     ) -> Result<cranelift_codegen::ir::Value, CompileError> {
         match target {
             // --- I/O builtins ---
-            "std::io::println" => {
-                self.lower_println(args, builder, var_map)
-            }
-            "std::io::print" => {
-                self.lower_print_no_newline(args, builder, var_map)
-            }
+            "std::io::println" => self.lower_println(args, builder, var_map),
+            "std::io::print" => self.lower_print_no_newline(args, builder, var_map),
 
             // --- String builtins ---
             "std::string::concat" => {
@@ -1018,9 +1108,10 @@ impl<'a> JitCompiler<'a> {
 
             // --- User-defined function call ---
             _ => {
-                let callee_id = self.func_ids.get(target).ok_or_else(|| {
-                    CompileError::FunctionNotFound(target.to_string())
-                })?;
+                let callee_id = self
+                    .func_ids
+                    .get(target)
+                    .ok_or_else(|| CompileError::FunctionNotFound(target.to_string()))?;
                 let callee_id = *callee_id;
                 let func_ref = self
                     .jit_module
@@ -1128,7 +1219,9 @@ impl<'a> JitCompiler<'a> {
                 Ok(builder.ins().uextend(cl_types::I64, cmp))
             }
             BinOpKind::Gte => {
-                let cmp = builder.ins().icmp(IntCC::SignedGreaterThanOrEqual, lhs, rhs);
+                let cmp = builder
+                    .ins()
+                    .icmp(IntCC::SignedGreaterThanOrEqual, lhs, rhs);
                 Ok(builder.ins().uextend(cl_types::I64, cmp))
             }
             BinOpKind::And => Ok(builder.ins().band(lhs, rhs)),

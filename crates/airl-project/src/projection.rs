@@ -45,7 +45,10 @@ fn project_module_ts(module: &Module, out: &mut String) {
     if !meta.description.is_empty() {
         out.push_str(&format!("// {}\n", meta.description));
     }
-    out.push_str(&format!("// Module: {} v{}\n\n", module.module.name, meta.version));
+    out.push_str(&format!(
+        "// Module: {} v{}\n\n",
+        module.module.name, meta.version
+    ));
 
     // Imports
     for import in &module.module.imports {
@@ -78,7 +81,10 @@ fn project_func_ts(func: &FuncDef, out: &mut String, indent: usize) {
     // Effect annotation as JSDoc
     if !func.effects.is_empty() && !func.is_pure() {
         let effects: Vec<String> = func.effects.iter().map(|e| e.to_effect_str()).collect();
-        out.push_str(&format!("{pad}/** @effects {{{}}} */\n", effects.join(", ")));
+        out.push_str(&format!(
+            "{pad}/** @effects {{{}}} */\n",
+            effects.join(", ")
+        ));
     }
 
     out.push_str(&format!(
@@ -394,9 +400,16 @@ fn type_to_ts(ty: &Type) -> String {
     match ty {
         Type::Unit => "void".to_string(),
         Type::Bool => "boolean".to_string(),
-        Type::I8 | Type::I16 | Type::I32 | Type::I64
-        | Type::U8 | Type::U16 | Type::U32 | Type::U64
-        | Type::F32 | Type::F64 => "number".to_string(),
+        Type::I8
+        | Type::I16
+        | Type::I32
+        | Type::I64
+        | Type::U8
+        | Type::U16
+        | Type::U32
+        | Type::U64
+        | Type::F32
+        | Type::F64 => "number".to_string(),
         Type::String => "string".to_string(),
         Type::Bytes => "Uint8Array".to_string(),
         Type::Array { element } => format!("{}[]", type_to_ts(element)),
@@ -408,8 +421,12 @@ fn type_to_ts(ty: &Type) -> String {
         Type::Result { ok, err } => format!("Result<{}, {}>", type_to_ts(ok), type_to_ts(err)),
         Type::Struct { name, .. } => name.0.clone(),
         Type::Enum { name, .. } => name.0.clone(),
-        Type::Function { params, returns, .. } => {
-            let p: Vec<String> = params.iter().enumerate()
+        Type::Function {
+            params, returns, ..
+        } => {
+            let p: Vec<String> = params
+                .iter()
+                .enumerate()
                 .map(|(i, t)| format!("arg{i}: {}", type_to_ts(t)))
                 .collect();
             format!("({}) => {}", p.join(", "), type_to_ts(returns))
@@ -435,7 +452,10 @@ fn project_module_py(module: &Module, out: &mut String) {
         out.push_str(&format!("\"\"\"{}\"\"\"", meta.description));
         out.push('\n');
     }
-    out.push_str(&format!("# Module: {} v{}\n\n", module.module.name, meta.version));
+    out.push_str(&format!(
+        "# Module: {} v{}\n\n",
+        module.module.name, meta.version
+    ));
 
     // Imports
     for import in &module.module.imports {
@@ -592,11 +612,7 @@ fn expr_to_py(node: &Node) -> String {
             name, value, body, ..
         } => {
             // Python doesn't have inline let; approximate with walrus
-            format!(
-                "({name} := {}, {})[1]",
-                expr_to_py(value),
-                expr_to_py(body)
-            )
+            format!("({name} := {}, {})[1]", expr_to_py(value), expr_to_py(body))
         }
 
         Node::If {
@@ -776,8 +792,14 @@ fn type_to_py(ty: &Type) -> String {
     match ty {
         Type::Unit => "None".to_string(),
         Type::Bool => "bool".to_string(),
-        Type::I8 | Type::I16 | Type::I32 | Type::I64
-        | Type::U8 | Type::U16 | Type::U32 | Type::U64 => "int".to_string(),
+        Type::I8
+        | Type::I16
+        | Type::I32
+        | Type::I64
+        | Type::U8
+        | Type::U16
+        | Type::U32
+        | Type::U64 => "int".to_string(),
         Type::F32 | Type::F64 => "float".to_string(),
         Type::String => "str".to_string(),
         Type::Bytes => "bytes".to_string(),
@@ -790,7 +812,9 @@ fn type_to_py(ty: &Type) -> String {
         Type::Result { ok, .. } => type_to_py(ok),
         Type::Struct { name, .. } => name.0.clone(),
         Type::Enum { name, .. } => name.0.clone(),
-        Type::Function { params, returns, .. } => {
+        Type::Function {
+            params, returns, ..
+        } => {
             let p: Vec<String> = params.iter().map(type_to_py).collect();
             format!("Callable[[{}], {}]", p.join(", "), type_to_py(returns))
         }
@@ -868,8 +892,8 @@ mod tests {
 
     #[test]
     fn test_fibonacci_typescript() {
-        let json = std::fs::read_to_string("../../../examples/fibonacci.airl.json")
-            .unwrap_or_else(|_| {
+        let json =
+            std::fs::read_to_string("../../../examples/fibonacci.airl.json").unwrap_or_else(|_| {
                 // Fallback for test environments
                 include_str!("../../../examples/fibonacci.airl.json").to_string()
             });
@@ -883,9 +907,7 @@ mod tests {
     #[test]
     fn test_fibonacci_python() {
         let json = std::fs::read_to_string("../../../examples/fibonacci.airl.json")
-            .unwrap_or_else(|_| {
-                include_str!("../../../examples/fibonacci.airl.json").to_string()
-            });
+            .unwrap_or_else(|_| include_str!("../../../examples/fibonacci.airl.json").to_string());
         let module = load_module(&json);
         let py = project_module(&module, Language::Python);
         assert!(py.contains("def fib("));

@@ -92,10 +92,7 @@ fn apply_op(module: &mut Module, op: &PatchOp) -> Result<(), PatchError> {
         }
 
         PatchOp::RemoveFunction { func_id } => {
-            module
-                .module
-                .functions
-                .retain(|f| &f.id != func_id);
+            module.module.functions.retain(|f| &f.id != func_id);
             Ok(())
         }
 
@@ -124,8 +121,7 @@ fn apply_op(module: &mut Module, op: &PatchOp) -> Result<(), PatchError> {
                 .map(|func| {
                     let in_scope = scope.as_ref().is_none_or(|s| &func.id == s);
                     if in_scope {
-                        let new_body =
-                            traverse::rename_in_tree(&func.body, old_name, new_name);
+                        let new_body = traverse::rename_in_tree(&func.body, old_name, new_name);
                         let new_name_field = if func.name == *old_name {
                             new_name.clone()
                         } else {

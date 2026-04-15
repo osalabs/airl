@@ -381,9 +381,7 @@ pub async fn project_to_text(
             "json" => serde_json::to_string_pretty(&p.module).unwrap_or_default(),
             lang => {
                 // Try real language projection (TypeScript, Python)
-                if let Some(language) =
-                    airl_project::projection::Language::from_str(lang)
-                {
+                if let Some(language) = airl_project::projection::Language::from_str(lang) {
                     airl_project::projection::project_module(&p.module, language)
                 } else {
                     // Fallback: pseudo-code signatures

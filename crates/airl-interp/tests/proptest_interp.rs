@@ -6,11 +6,11 @@
 //! - String builtins produce valid output
 //! - Division by zero returns error, not panic
 
+use airl_ir::effects::Effect;
+use airl_ir::ids::*;
 use airl_ir::module::*;
 use airl_ir::node::*;
 use airl_ir::types::Type;
-use airl_ir::effects::Effect;
-use airl_ir::ids::*;
 
 fn make_module(body: Node) -> Module {
     Module {
@@ -72,8 +72,19 @@ fn str_lit(val: &str) -> Node {
 #[test]
 fn prop_print_integers() {
     let test_values: Vec<i64> = vec![
-        0, 1, -1, 42, -42, 100, -100, 1000000, -1000000,
-        i64::MAX, i64::MIN, i64::MAX - 1, i64::MIN + 1,
+        0,
+        1,
+        -1,
+        42,
+        -42,
+        100,
+        -100,
+        1000000,
+        -1000000,
+        i64::MAX,
+        i64::MIN,
+        i64::MAX - 1,
+        i64::MIN + 1,
     ];
     for val in test_values {
         let body = println_node(int_lit(val));
@@ -97,8 +108,14 @@ fn prop_print_strings() {
 #[test]
 fn prop_addition_consistency() {
     let pairs: Vec<(i64, i64)> = vec![
-        (0, 0), (1, 1), (-1, 1), (100, -100), (i64::MAX - 1, 1),
-        (1000, 2000), (-500, -300), (0, i64::MAX),
+        (0, 0),
+        (1, 1),
+        (-1, 1),
+        (100, -100),
+        (i64::MAX - 1, 1),
+        (1000, 2000),
+        (-500, -300),
+        (0, i64::MAX),
     ];
     for (a, b) in pairs {
         let body = println_node(Node::BinOp {
@@ -120,9 +137,7 @@ fn prop_addition_consistency() {
 
 #[test]
 fn prop_multiplication_consistency() {
-    let pairs: Vec<(i64, i64)> = vec![
-        (0, 100), (1, 42), (-1, 42), (7, 6), (-3, -5), (100, 100),
-    ];
+    let pairs: Vec<(i64, i64)> = vec![(0, 100), (1, 42), (-1, 42), (7, 6), (-3, -5), (100, 100)];
     for (a, b) in pairs {
         let body = println_node(Node::BinOp {
             id: NodeId::new("mul"),
@@ -175,8 +190,12 @@ fn prop_mod_by_zero_errors() {
 
 #[test]
 fn prop_if_else_selects_correctly() {
-    for (cond, then_v, else_v) in [(true, 10, 20), (false, 10, 20), (true, -1, 0), (false, 0, -1)]
-    {
+    for (cond, then_v, else_v) in [
+        (true, 10, 20),
+        (false, 10, 20),
+        (true, -1, 0),
+        (false, 0, -1),
+    ] {
         let body = println_node(Node::If {
             id: NodeId::new("if"),
             node_type: Type::I64,

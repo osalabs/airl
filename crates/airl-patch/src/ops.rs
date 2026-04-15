@@ -12,30 +12,19 @@ use serde::{Deserialize, Serialize};
 pub enum PatchOp {
     /// Replace a node (identified by NodeId) with a new node.
     /// The replacement's root may have a different NodeId.
-    ReplaceNode {
-        target: NodeId,
-        replacement: Node,
-    },
+    ReplaceNode { target: NodeId, replacement: Node },
 
     /// Add a new function to the module.
-    AddFunction {
-        func: FuncDef,
-    },
+    AddFunction { func: FuncDef },
 
     /// Remove a function by its FuncId.
-    RemoveFunction {
-        func_id: FuncId,
-    },
+    RemoveFunction { func_id: FuncId },
 
     /// Add an import to the module.
-    AddImport {
-        import: Import,
-    },
+    AddImport { import: Import },
 
     /// Remove an import from the module.
-    RemoveImport {
-        import: Import,
-    },
+    RemoveImport { import: Import },
 
     /// Rename a symbol (variable, function name, call target) throughout the module
     /// or within a specific function scope.
@@ -47,16 +36,10 @@ pub enum PatchOp {
     },
 
     /// Add an effect to a function's declared effect list.
-    AddEffect {
-        func_id: FuncId,
-        effect: Effect,
-    },
+    AddEffect { func_id: FuncId, effect: Effect },
 
     /// Remove an effect from a function's declared effect list.
-    RemoveEffect {
-        func_id: FuncId,
-        effect: Effect,
-    },
+    RemoveEffect { func_id: FuncId, effect: Effect },
 }
 
 /// A patch is an ordered list of operations with metadata.

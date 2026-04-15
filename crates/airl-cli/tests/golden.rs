@@ -42,7 +42,10 @@ fn all_examples_typecheck() {
             count += 1;
         }
     }
-    assert!(count >= 3, "Expected at least 3 example files, found {count}");
+    assert!(
+        count >= 3,
+        "Expected at least 3 example files, found {count}"
+    );
 }
 
 /// Verify all examples run through the interpreter.
@@ -174,8 +177,10 @@ fn file_search_output_correct() {
     // This test must run from the repo root where `examples/` exists.
     // Set the working directory to the repo root for this test.
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent().unwrap()
-        .parent().unwrap();
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
     let _prev = std::env::current_dir().unwrap();
     std::env::set_current_dir(repo_root).unwrap();
 
@@ -215,7 +220,10 @@ fn all_examples_produce_valid_wasm() {
             count += 1;
         }
     }
-    assert!(count >= 5, "Expected at least 5 WASM files, compiled {count}");
+    assert!(
+        count >= 5,
+        "Expected at least 5 WASM files, compiled {count}"
+    );
 }
 
 // --- Text projection tests for all examples ---

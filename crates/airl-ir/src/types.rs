@@ -30,16 +30,44 @@ pub enum Type {
     Bytes,
 
     // Composite
-    Array { element: Box<Type> },
-    Tuple { elements: Vec<Type> },
-    Struct { name: Symbol, fields: Vec<(Symbol, Type)> },
-    Enum { name: Symbol, variants: Vec<Variant> },
-    Function { params: Vec<Type>, returns: Box<Type>, effects: Vec<Effect> },
-    Reference { inner: Box<Type>, mutable: bool },
-    Optional { inner: Box<Type> },
-    Result { ok: Box<Type>, err: Box<Type> },
-    TypeParam { name: Symbol, bounds: Vec<std::string::String> },
-    Generic { base: Box<Type>, args: Vec<Type> },
+    Array {
+        element: Box<Type>,
+    },
+    Tuple {
+        elements: Vec<Type>,
+    },
+    Struct {
+        name: Symbol,
+        fields: Vec<(Symbol, Type)>,
+    },
+    Enum {
+        name: Symbol,
+        variants: Vec<Variant>,
+    },
+    Function {
+        params: Vec<Type>,
+        returns: Box<Type>,
+        effects: Vec<Effect>,
+    },
+    Reference {
+        inner: Box<Type>,
+        mutable: bool,
+    },
+    Optional {
+        inner: Box<Type>,
+    },
+    Result {
+        ok: Box<Type>,
+        err: Box<Type>,
+    },
+    TypeParam {
+        name: Symbol,
+        bounds: Vec<std::string::String>,
+    },
+    Generic {
+        base: Box<Type>,
+        args: Vec<Type>,
+    },
     Named(TypeId),
 }
 
@@ -145,7 +173,9 @@ impl Type {
             Type::Named(id) => id.0.clone(),
             Type::Struct { name, .. } => name.0.clone(),
             Type::Enum { name, .. } => name.0.clone(),
-            Type::Function { params, returns, .. } => {
+            Type::Function {
+                params, returns, ..
+            } => {
                 let p: Vec<_> = params.iter().map(|t| t.to_type_str()).collect();
                 format!("Fn({}) -> {}", p.join(", "), returns.to_type_str())
             }

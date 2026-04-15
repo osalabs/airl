@@ -5,7 +5,11 @@ use std::path::PathBuf;
 use std::process;
 
 #[derive(Parser)]
-#[command(name = "airl", version, about = "AIRL - AI-native Intermediate Representation Language")]
+#[command(
+    name = "airl",
+    version,
+    about = "AIRL - AI-native Intermediate Representation Language"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -91,7 +95,11 @@ async fn main() {
             }
         }
         Commands::Check { file } => cmd_check(&file),
-        Commands::Compile { file, target, output } => {
+        Commands::Compile {
+            file,
+            target,
+            output,
+        } => {
             if target == "wasm" {
                 cmd_compile_wasm(&file, output.as_deref());
             } else {
@@ -196,10 +204,7 @@ fn cmd_compile(file: &PathBuf) {
     match airl_compile::compile_and_run(graph.module()) {
         Ok(output) => {
             print!("{}", output.stdout);
-            eprintln!(
-                "[compiled in {}ms]",
-                output.compile_time_ms
-            );
+            eprintln!("[compiled in {}ms]", output.compile_time_ms);
             process::exit(output.exit_code);
         }
         Err(e) => {

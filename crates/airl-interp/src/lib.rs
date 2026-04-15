@@ -289,13 +289,15 @@ impl<'a> Interpreter<'a> {
             } => {
                 let obj = self.eval(object)?;
                 match obj {
-                    Value::Struct(fields) => fields
-                        .get(field)
-                        .cloned()
-                        .ok_or(InterpreterError::FieldNotFound {
-                            node_id: id.to_string(),
-                            field: field.clone(),
-                        }),
+                    Value::Struct(fields) => {
+                        fields
+                            .get(field)
+                            .cloned()
+                            .ok_or(InterpreterError::FieldNotFound {
+                                node_id: id.to_string(),
+                                field: field.clone(),
+                            })
+                    }
                     _ => Err(InterpreterError::TypeError {
                         node_id: id.to_string(),
                         message: "field access on non-struct value".to_string(),
@@ -365,11 +367,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn lookup_var(
-        &self,
-        name: &str,
-        id: &airl_ir::NodeId,
-    ) -> Result<Value, InterpreterError> {
+    fn lookup_var(&self, name: &str, id: &airl_ir::NodeId) -> Result<Value, InterpreterError> {
         for (n, v) in self.locals.iter().rev() {
             if n == name {
                 return Ok(v.clone());
@@ -477,12 +475,17 @@ impl<'a> Interpreter<'a> {
                 Value::Str(result)
             }
             "std::string::contains" => match (args.first(), args.get(1)) {
-                (Some(Value::Str(s)), Some(Value::Str(sub))) => Value::Boolean(s.contains(sub.as_str())),
+                (Some(Value::Str(s)), Some(Value::Str(sub))) => {
+                    Value::Boolean(s.contains(sub.as_str()))
+                }
                 _ => Value::Boolean(false),
             },
             "std::string::split" => match (args.first(), args.get(1)) {
                 (Some(Value::Str(s)), Some(Value::Str(sep))) => {
-                    let parts: Vec<Value> = s.split(sep.as_str()).map(|p| Value::Str(p.to_string())).collect();
+                    let parts: Vec<Value> = s
+                        .split(sep.as_str())
+                        .map(|p| Value::Str(p.to_string()))
+                        .collect();
                     Value::Array(parts)
                 }
                 _ => Value::Array(vec![]),
@@ -537,15 +540,11 @@ impl<'a> Interpreter<'a> {
                 _ => Value::Integer(0),
             },
             "std::math::max" => match (args.first(), args.get(1)) {
-                (Some(Value::Integer(a)), Some(Value::Integer(b))) => {
-                    Value::Integer((*a).max(*b))
-                }
+                (Some(Value::Integer(a)), Some(Value::Integer(b))) => Value::Integer((*a).max(*b)),
                 _ => Value::Integer(0),
             },
             "std::math::min" => match (args.first(), args.get(1)) {
-                (Some(Value::Integer(a)), Some(Value::Integer(b))) => {
-                    Value::Integer((*a).min(*b))
-                }
+                (Some(Value::Integer(a)), Some(Value::Integer(b))) => Value::Integer((*a).min(*b)),
                 _ => Value::Integer(0),
             },
             "std::math::pow" => match (args.first(), args.get(1)) {
@@ -594,7 +593,11 @@ impl<'a> Interpreter<'a> {
                 _ => Value::Unit,
             },
             "std::array::slice" => match (args.first(), args.get(1), args.get(2)) {
-                (Some(Value::Array(items)), Some(Value::Integer(start)), Some(Value::Integer(end))) => {
+                (
+                    Some(Value::Array(items)),
+                    Some(Value::Integer(start)),
+                    Some(Value::Integer(end)),
+                ) => {
                     let s = (*start).max(0) as usize;
                     let e = (*end).min(items.len() as i64) as usize;
                     if s <= e && e <= items.len() {
@@ -606,9 +609,7 @@ impl<'a> Interpreter<'a> {
                 _ => Value::Array(vec![]),
             },
             "std::array::contains" => match (args.first(), args.get(1)) {
-                (Some(Value::Array(items)), Some(val)) => {
-                    Value::Boolean(items.contains(val))
-                }
+                (Some(Value::Array(items)), Some(val)) => Value::Boolean(items.contains(val)),
                 _ => Value::Boolean(false),
             },
             "std::array::reverse" => match args.first() {
@@ -621,7 +622,8 @@ impl<'a> Interpreter<'a> {
             },
             "std::array::join" => match (args.first(), args.get(1)) {
                 (Some(Value::Array(items)), Some(Value::Str(sep))) => {
-                    let strings: Vec<String> = items.iter().map(|v| v.to_display_string()).collect();
+                    let strings: Vec<String> =
+                        items.iter().map(|v| v.to_display_string()).collect();
                     Value::Str(strings.join(sep.as_str()))
                 }
                 _ => Value::Str(String::new()),
@@ -709,9 +711,7 @@ impl<'a> Interpreter<'a> {
                 _ => Value::Array(vec![]),
             },
             "std::collections::values" => match args.first() {
-                Some(Value::Map(map)) => {
-                    Value::Array(map.values().cloned().collect())
-                }
+                Some(Value::Map(map)) => Value::Array(map.values().cloned().collect()),
                 _ => Value::Array(vec![]),
             },
             "std::collections::map_len" => match args.first() {
@@ -732,7 +732,8 @@ impl<'a> Interpreter<'a> {
             "std::error::assert" => match args.first() {
                 Some(Value::Boolean(true)) => Value::Unit,
                 Some(Value::Boolean(false)) => {
-                    let msg = args.get(1)
+                    let msg = args
+                        .get(1)
                         .map(|v| v.to_display_string())
                         .unwrap_or_else(|| "assertion failed".to_string());
                     self.stdout.push_str(&format!("ASSERTION FAILED: {msg}\n"));
@@ -741,7 +742,8 @@ impl<'a> Interpreter<'a> {
                 _ => Value::Unit,
             },
             "std::error::panic" => {
-                let msg = args.first()
+                let msg = args
+                    .first()
                     .map(|v| v.to_display_string())
                     .unwrap_or_else(|| "panic".to_string());
                 return Err(InterpreterError::TypeError {
@@ -752,16 +754,19 @@ impl<'a> Interpreter<'a> {
 
             // Process
             "std::process::exit" => {
-                let code = args.first()
-                    .and_then(|v| v.as_integer())
-                    .unwrap_or(0);
+                let code = args.first().and_then(|v| v.as_integer()).unwrap_or(0);
                 std::process::exit(code as i32);
             }
             "std::process::exec" => match args.first() {
                 Some(Value::Str(cmd)) => {
-                    let output = std::process::Command::new(if cfg!(windows) { "cmd" } else { "sh" })
-                        .args(if cfg!(windows) { vec!["/C", cmd] } else { vec!["-c", cmd] })
-                        .output();
+                    let output =
+                        std::process::Command::new(if cfg!(windows) { "cmd" } else { "sh" })
+                            .args(if cfg!(windows) {
+                                vec!["/C", cmd]
+                            } else {
+                                vec!["-c", cmd]
+                            })
+                            .output();
                     match output {
                         Ok(o) => {
                             let stdout = String::from_utf8_lossy(&o.stdout).to_string();
@@ -769,7 +774,10 @@ impl<'a> Interpreter<'a> {
                             let mut result = BTreeMap::new();
                             result.insert("stdout".to_string(), Value::Str(stdout));
                             result.insert("stderr".to_string(), Value::Str(stderr));
-                            result.insert("code".to_string(), Value::Integer(o.status.code().unwrap_or(-1) as i64));
+                            result.insert(
+                                "code".to_string(),
+                                Value::Integer(o.status.code().unwrap_or(-1) as i64),
+                            );
                             Value::Map(result)
                         }
                         Err(_) => Value::Unit,
@@ -1029,7 +1037,11 @@ impl<'a> Interpreter<'a> {
 
         Err(InterpreterError::TypeError {
             node_id: id.to_string(),
-            message: format!("type mismatch in {op:?}: {} vs {}", lhs.to_display_string(), rhs.to_display_string()),
+            message: format!(
+                "type mismatch in {op:?}: {} vs {}",
+                lhs.to_display_string(),
+                rhs.to_display_string()
+            ),
         })
     }
 
@@ -1065,7 +1077,9 @@ fn simple_hash(data: &[u8]) -> String {
         hash = hash.wrapping_mul(0x100000001b3);
     }
     // Produce a 64-char hex string (pad with repeated hash)
-    let h2 = hash.wrapping_mul(0x9e3779b97f4a7c15).wrapping_add(hash >> 3);
+    let h2 = hash
+        .wrapping_mul(0x9e3779b97f4a7c15)
+        .wrapping_add(hash >> 3);
     let h3 = h2.wrapping_mul(0x517cc1b727220a95).wrapping_add(h2 >> 5);
     let h4 = h3.wrapping_mul(0x6c62272e07bb0142).wrapping_add(h3 >> 7);
     format!("{hash:016x}{h2:016x}{h3:016x}{h4:016x}")
@@ -1089,9 +1103,7 @@ fn json_to_value(val: &serde_json::Value) -> Value {
             }
         }
         serde_json::Value::String(s) => Value::Str(s.clone()),
-        serde_json::Value::Array(arr) => {
-            Value::Array(arr.iter().map(json_to_value).collect())
-        }
+        serde_json::Value::Array(arr) => Value::Array(arr.iter().map(json_to_value).collect()),
         serde_json::Value::Object(obj) => {
             let map: BTreeMap<String, Value> = obj
                 .iter()
@@ -1105,17 +1117,13 @@ fn json_to_value(val: &serde_json::Value) -> Value {
 fn value_to_json(val: &Value) -> serde_json::Value {
     match val {
         Value::Integer(i) => serde_json::Value::Number((*i).into()),
-        Value::Float(f) => {
-            serde_json::Number::from_f64(*f)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null)
-        }
+        Value::Float(f) => serde_json::Number::from_f64(*f)
+            .map(serde_json::Value::Number)
+            .unwrap_or(serde_json::Value::Null),
         Value::Boolean(b) => serde_json::Value::Bool(*b),
         Value::Str(s) => serde_json::Value::String(s.clone()),
         Value::Unit => serde_json::Value::Null,
-        Value::Array(items) => {
-            serde_json::Value::Array(items.iter().map(value_to_json).collect())
-        }
+        Value::Array(items) => serde_json::Value::Array(items.iter().map(value_to_json).collect()),
         Value::Struct(fields) | Value::Map(fields) => {
             let map: serde_json::Map<String, serde_json::Value> = fields
                 .iter()
@@ -1235,30 +1243,35 @@ mod tests {
 
     #[test]
     fn test_hello_world() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Call", "type": "Unit",
             "target": "std::io::println",
             "args": [{"id": "n_2", "kind": "Literal", "type": "String", "value": "hello world"}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "hello world\n");
     }
 
     #[test]
     fn test_arithmetic() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Call", "type": "Unit",
             "target": "std::io::println",
             "args": [{"id": "n_2", "kind": "BinOp", "type": "I64", "op": "Add",
                 "lhs": {"id": "n_3", "kind": "Literal", "type": "I64", "value": 40},
                 "rhs": {"id": "n_4", "kind": "Literal", "type": "I64", "value": 2}
             }]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "42\n");
     }
 
     #[test]
     fn test_if_then_else() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Call", "type": "Unit",
             "target": "std::io::println",
             "args": [{"id": "n_2", "kind": "If", "type": "String",
@@ -1269,20 +1282,23 @@ mod tests {
                 "then_branch": {"id": "n_6", "kind": "Literal", "type": "String", "value": "yes"},
                 "else_branch": {"id": "n_7", "kind": "Literal", "type": "String", "value": "no"}
             }]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "yes\n");
     }
 
     #[test]
     fn test_let_binding() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Let", "type": "Unit", "name": "x",
             "value": {"id": "n_2", "kind": "Literal", "type": "I64", "value": 42},
             "body": {"id": "n_3", "kind": "Call", "type": "Unit",
                 "target": "std::io::println",
                 "args": [{"id": "n_4", "kind": "Param", "type": "I64", "name": "x", "index": 0}]
             }
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "42\n");
     }
 
@@ -1366,7 +1382,8 @@ mod tests {
 
     #[test]
     fn test_struct_create_and_access() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Let", "type": "Unit", "name": "p",
             "value": {"id": "n_2", "kind": "StructLiteral", "type": "Point",
                 "fields": [
@@ -1381,13 +1398,15 @@ mod tests {
                     "field": "x"
                 }]
             }
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "10\n");
     }
 
     #[test]
     fn test_array_create_and_index() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Let", "type": "Unit", "name": "arr",
             "value": {"id": "n_2", "kind": "ArrayLiteral", "type": "Array<I64>",
                 "elements": [
@@ -1403,13 +1422,15 @@ mod tests {
                     "index": {"id": "n_9", "kind": "Literal", "type": "I64", "value": 1}
                 }]
             }
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "20\n");
     }
 
     #[test]
     fn test_match_literal() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Call", "type": "Unit",
             "target": "std::io::println",
             "args": [{"id": "n_2", "kind": "Match", "type": "String",
@@ -1423,13 +1444,15 @@ mod tests {
                      "body": {"id": "n_6", "kind": "Literal", "type": "String", "value": "other"}}
                 ]
             }]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "two\n");
     }
 
     #[test]
     fn test_match_wildcard() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Call", "type": "Unit",
             "target": "std::io::println",
             "args": [{"id": "n_2", "kind": "Match", "type": "String",
@@ -1441,13 +1464,15 @@ mod tests {
                      "body": {"id": "n_5", "kind": "Literal", "type": "String", "value": "other"}}
                 ]
             }]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "other\n");
     }
 
     #[test]
     fn test_block_multiple_statements() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Block", "type": "Unit",
             "statements": [
                 {"id": "s1", "kind": "Call", "type": "Unit",
@@ -1458,13 +1483,15 @@ mod tests {
                     "args": [{"id": "a2", "kind": "Literal", "type": "String", "value": "second"}]}
             ],
             "result": {"id": "n_end", "kind": "Literal", "type": "Unit", "value": null}
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "first\nsecond\n");
     }
 
     #[test]
     fn test_nested_let_bindings() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Let", "type": "Unit", "name": "x",
             "value": {"id": "n_2", "kind": "Literal", "type": "I64", "value": 10},
             "body": {"id": "n_3", "kind": "Let", "type": "Unit", "name": "y",
@@ -1477,18 +1504,24 @@ mod tests {
                     "args": [{"id": "n_8", "kind": "Param", "type": "I64", "name": "y", "index": 0}]
                 }
             }
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "20\n");
     }
 
     #[test]
     fn test_division_by_zero() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "BinOp", "type": "I64", "op": "Div",
             "lhs": {"id": "n_2", "kind": "Literal", "type": "I64", "value": 10},
             "rhs": {"id": "n_3", "kind": "Literal", "type": "I64", "value": 0}
-        }"#);
-        assert!(matches!(run_err(&json), InterpreterError::DivisionByZero(_)));
+        }"#,
+        );
+        assert!(matches!(
+            run_err(&json),
+            InterpreterError::DivisionByZero(_)
+        ));
     }
 
     #[test]
@@ -1551,7 +1584,8 @@ mod tests {
 
     #[test]
     fn test_index_out_of_bounds() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Let", "type": "Unit", "name": "arr",
             "value": {"id": "n_2", "kind": "ArrayLiteral", "type": "Array<I64>",
                 "elements": [{"id": "n_3", "kind": "Literal", "type": "I64", "value": 1}]
@@ -1560,7 +1594,8 @@ mod tests {
                 "array": {"id": "n_5", "kind": "Param", "type": "Array<I64>", "name": "arr", "index": 0},
                 "index": {"id": "n_6", "kind": "Literal", "type": "I64", "value": 5}
             }
-        }"#);
+        }"#,
+        );
         assert!(matches!(
             run_err(&json),
             InterpreterError::IndexOutOfBounds { .. }
@@ -1569,7 +1604,8 @@ mod tests {
 
     #[test]
     fn test_string_builtins() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Block", "type": "Unit",
             "statements": [
                 {"id": "s1", "kind": "Call", "type": "Unit", "target": "std::io::println",
@@ -1585,25 +1621,29 @@ mod tests {
                 }
             ],
             "result": {"id": "n_end", "kind": "Literal", "type": "Unit", "value": null}
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "5\ntrue\n");
     }
 
     #[test]
     fn test_string_concat_via_add() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Call", "type": "Unit", "target": "std::io::println",
             "args": [{"id": "n_2", "kind": "BinOp", "type": "String", "op": "Add",
                 "lhs": {"id": "n_3", "kind": "Literal", "type": "String", "value": "hello "},
                 "rhs": {"id": "n_4", "kind": "Literal", "type": "String", "value": "world"}
             }]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "hello world\n");
     }
 
     #[test]
     fn test_array_builtins() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id": "n_1", "kind": "Let", "type": "Unit", "name": "arr",
             "value": {"id": "n_2", "kind": "ArrayLiteral", "type": "Array<I64>",
                 "elements": [
@@ -1616,7 +1656,8 @@ mod tests {
                     "args": [{"id": "n_7", "kind": "Param", "type": "Array<I64>", "name": "arr", "index": 0}]
                 }]
             }
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "2\n");
     }
 
@@ -1624,63 +1665,74 @@ mod tests {
 
     #[test]
     fn test_string_starts_with() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"Bool","target":"std::string::starts_with",
                 "args":[
                     {"id":"n3","kind":"Literal","type":"String","value":"hello world"},
                     {"id":"n4","kind":"Literal","type":"String","value":"hello"}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "true\n");
     }
 
     #[test]
     fn test_string_ends_with() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"Bool","target":"std::string::ends_with",
                 "args":[
                     {"id":"n3","kind":"Literal","type":"String","value":"hello world"},
                     {"id":"n4","kind":"Literal","type":"String","value":"world"}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "true\n");
     }
 
     #[test]
     fn test_string_trim() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"String","target":"std::string::trim",
                 "args":[{"id":"n3","kind":"Literal","type":"String","value":"  hello  "}]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "hello\n");
     }
 
     #[test]
     fn test_string_to_uppercase() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"String","target":"std::string::to_uppercase",
                 "args":[{"id":"n3","kind":"Literal","type":"String","value":"hello"}]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "HELLO\n");
     }
 
     #[test]
     fn test_string_to_lowercase() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"String","target":"std::string::to_lowercase",
                 "args":[{"id":"n3","kind":"Literal","type":"String","value":"HELLO"}]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "hello\n");
     }
 
     #[test]
     fn test_string_replace() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"String","target":"std::string::replace",
                 "args":[
@@ -1688,26 +1740,30 @@ mod tests {
                     {"id":"n4","kind":"Literal","type":"String","value":"world"},
                     {"id":"n5","kind":"Literal","type":"String","value":"AIRL"}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "hello AIRL\n");
     }
 
     #[test]
     fn test_math_pow() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"I64","target":"std::math::pow",
                 "args":[
                     {"id":"n3","kind":"Literal","type":"I64","value":2},
                     {"id":"n4","kind":"Literal","type":"I64","value":10}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "1024\n");
     }
 
     #[test]
     fn test_array_range() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"String","target":"std::array::join",
                 "args":[
@@ -1718,13 +1774,15 @@ mod tests {
                         ]},
                     {"id":"n6","kind":"Literal","type":"String","value":", "}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "1, 2, 3, 4\n");
     }
 
     #[test]
     fn test_array_contains() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"Bool","target":"std::array::contains",
                 "args":[
@@ -1735,13 +1793,15 @@ mod tests {
                     ]},
                     {"id":"n4","kind":"Literal","type":"I64","value":20}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "true\n");
     }
 
     #[test]
     fn test_array_reverse() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"String","target":"std::array::join",
                 "args":[
@@ -1753,13 +1813,15 @@ mod tests {
                         ]}]},
                     {"id":"n5","kind":"Literal","type":"String","value":", "}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "3, 2, 1\n");
     }
 
     #[test]
     fn test_array_slice() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"I64","target":"std::array::len",
                 "args":[{"id":"n3","kind":"Call","type":"Array<I64>","target":"std::array::slice",
@@ -1774,13 +1836,15 @@ mod tests {
                         {"id":"n6","kind":"Literal","type":"I64","value":3}
                     ]}]
             }]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "2\n");
     }
 
     #[test]
     fn test_fmt_format() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"String","target":"std::fmt::format",
                 "args":[
@@ -1788,13 +1852,15 @@ mod tests {
                     {"id":"n4","kind":"Literal","type":"String","value":"Alice"},
                     {"id":"n5","kind":"Literal","type":"I64","value":30}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "Hello, Alice! You are 30 years old.\n");
     }
 
     #[test]
     fn test_array_get() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"I64","target":"std::array::get",
                 "args":[
@@ -1805,7 +1871,8 @@ mod tests {
                     ]},
                     {"id":"n4","kind":"Literal","type":"I64","value":1}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "20\n");
     }
 
@@ -1816,34 +1883,40 @@ mod tests {
         let tmp_str = tmp.to_string_lossy().replace('\\', "\\\\");
 
         // write_file
-        let write_json = wrap_main(&format!(r#"{{
+        let write_json = wrap_main(&format!(
+            r#"{{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{{"id":"n2","kind":"Call","type":"Bool","target":"std::io::write_file",
                 "args":[
                     {{"id":"n3","kind":"Literal","type":"String","value":"{tmp_str}"}},
                     {{"id":"n4","kind":"Literal","type":"String","value":"hello from airl"}}
                 ]}}]
-        }}"#));
+        }}"#
+        ));
         assert_eq!(run(&write_json), "true\n");
 
         // read_file
-        let read_json = wrap_main(&format!(r#"{{
+        let read_json = wrap_main(&format!(
+            r#"{{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{{"id":"n2","kind":"Call","type":"String","target":"std::io::read_file",
                 "args":[
                     {{"id":"n3","kind":"Literal","type":"String","value":"{tmp_str}"}}
                 ]}}]
-        }}"#));
+        }}"#
+        ));
         assert_eq!(run(&read_json), "hello from airl\n");
 
         // file_exists
-        let exists_json = wrap_main(&format!(r#"{{
+        let exists_json = wrap_main(&format!(
+            r#"{{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{{"id":"n2","kind":"Call","type":"Bool","target":"std::io::file_exists",
                 "args":[
                     {{"id":"n3","kind":"Literal","type":"String","value":"{tmp_str}"}}
                 ]}}]
-        }}"#));
+        }}"#
+        ));
         assert_eq!(run(&exists_json), "true\n");
 
         // Clean up
@@ -1858,13 +1931,15 @@ mod tests {
         std::fs::write(tmp_dir.join("b.txt"), "b").unwrap();
 
         let dir_str = tmp_dir.to_string_lossy().replace('\\', "\\\\");
-        let json = wrap_main(&format!(r#"{{
+        let json = wrap_main(&format!(
+            r#"{{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{{"id":"n2","kind":"Call","type":"Array<String>","target":"std::io::read_dir",
                 "args":[
                     {{"id":"n3","kind":"Literal","type":"String","value":"{dir_str}"}}
                 ]}}]
-        }}"#));
+        }}"#
+        ));
 
         let output = run(&json);
         assert!(output.contains("a.txt"));
@@ -1877,14 +1952,16 @@ mod tests {
     #[test]
     fn test_json_parse_and_serialize() {
         // Parse a JSON string, then serialize it back
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"String","target":"std::json::serialize",
                 "args":[{"id":"n3","kind":"Call","type":"Unit","target":"std::json::parse",
                     "args":[{"id":"n4","kind":"Literal","type":"String","value":"{\"x\":42}"}]
                 }]
             }]
-        }"#);
+        }"#,
+        );
         let output = run(&json);
         assert!(output.contains("\"x\":42") || output.contains("\"x\": 42"));
     }
@@ -1892,7 +1969,8 @@ mod tests {
     #[test]
     fn test_collections_map() {
         // Create map, insert, get
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"b","kind":"Block","type":"Unit",
             "statements":[],
             "result": {"id":"n1","kind":"Let","type":"Unit","name":"m",
@@ -1913,13 +1991,15 @@ mod tests {
                     }
                 }
             }
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "99\n");
     }
 
     #[test]
     fn test_collections_contains_key() {
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"b","kind":"Block","type":"Unit",
             "statements":[],
             "result": {"id":"n1","kind":"Let","type":"Unit","name":"m",
@@ -1937,14 +2017,16 @@ mod tests {
                         ]}]
                 }
             }
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "true\n");
     }
 
     #[test]
     fn test_process_env_var() {
         // Set an env var, then read it back
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"b","kind":"Block","type":"Unit",
             "statements":[
                 {"id":"s1","kind":"Call","type":"Unit","target":"std::process::set_env_var",
@@ -1956,32 +2038,37 @@ mod tests {
             "result":{"id":"s2","kind":"Call","type":"Unit","target":"std::io::println",
                 "args":[{"id":"g","kind":"Call","type":"String","target":"std::process::env_var",
                     "args":[{"id":"k2","kind":"Literal","type":"String","value":"AIRL_TEST_VAR"}]}]}
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "hello_from_airl\n");
     }
 
     #[test]
     fn test_error_assert_and_unwrap() {
         // unwrap_or on non-unit returns the value
-        let json = wrap_main(r#"{
+        let json = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"Unit","target":"std::error::unwrap_or",
                 "args":[
                     {"id":"n3","kind":"Literal","type":"I64","value":42},
                     {"id":"n4","kind":"Literal","type":"I64","value":0}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json), "42\n");
 
         // unwrap_or on Unit returns the default
-        let json2 = wrap_main(r#"{
+        let json2 = wrap_main(
+            r#"{
             "id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
             "args":[{"id":"n2","kind":"Call","type":"Unit","target":"std::error::unwrap_or",
                 "args":[
                     {"id":"n3","kind":"Literal","type":"Unit","value":null},
                     {"id":"n4","kind":"Literal","type":"I64","value":99}
                 ]}]
-        }"#);
+        }"#,
+        );
         assert_eq!(run(&json2), "99\n");
     }
 }
