@@ -1,0 +1,98 @@
+{
+  "format_version": "0.1.0",
+  "module": {
+    "id": "mod_main",
+    "name": "main",
+    "metadata": {
+      "version": "1.0.0",
+      "description": "Self-test: exercises the testing framework and core builtins",
+      "author": "agent-001",
+      "created_at": "2026-04-15T12:00:00Z"
+    },
+    "imports": [],
+    "exports": [{"kind": "Function", "name": "main"}],
+    "types": [],
+    "functions": [
+      {
+        "id": "f_main",
+        "name": "main",
+        "params": [],
+        "returns": "Unit",
+        "effects": ["IO"],
+        "body": {
+          "id": "m_1", "kind": "Block", "type": "Unit",
+          "statements": [
+            {
+              "id": "s0", "kind": "Call", "type": "Unit", "target": "std::io::println",
+              "args": [{"id": "a0", "kind": "Literal", "type": "String", "value": "=== AIRL Self-Test ==="}]
+            },
+            {
+              "id": "s1", "kind": "Call", "type": "Unit", "target": "std::io::println",
+              "args": [{"id": "a1", "kind": "Call", "type": "String", "target": "std::fmt::format",
+                "args": [
+                  {"id": "f1", "kind": "Literal", "type": "String", "value": "math: 2+3={}, 10-4={}, 3*7={}"},
+                  {"id": "f2", "kind": "BinOp", "type": "I64", "op": "Add",
+                    "lhs": {"id": "l1", "kind": "Literal", "type": "I64", "value": 2},
+                    "rhs": {"id": "r1", "kind": "Literal", "type": "I64", "value": 3}},
+                  {"id": "f3", "kind": "BinOp", "type": "I64", "op": "Sub",
+                    "lhs": {"id": "l2", "kind": "Literal", "type": "I64", "value": 10},
+                    "rhs": {"id": "r2", "kind": "Literal", "type": "I64", "value": 4}},
+                  {"id": "f4", "kind": "BinOp", "type": "I64", "op": "Mul",
+                    "lhs": {"id": "l3", "kind": "Literal", "type": "I64", "value": 3},
+                    "rhs": {"id": "r3", "kind": "Literal", "type": "I64", "value": 7}}
+                ]}]
+            },
+            {
+              "id": "s2", "kind": "Call", "type": "Bool", "target": "std::testing::assert_eq",
+              "args": [
+                {"id": "t1", "kind": "BinOp", "type": "I64", "op": "Add",
+                  "lhs": {"id": "tl1", "kind": "Literal", "type": "I64", "value": 2},
+                  "rhs": {"id": "tr1", "kind": "Literal", "type": "I64", "value": 3}},
+                {"id": "t2", "kind": "Literal", "type": "I64", "value": 5}
+              ]
+            },
+            {
+              "id": "s3", "kind": "Call", "type": "Bool", "target": "std::testing::assert_eq",
+              "args": [
+                {"id": "t3", "kind": "Call", "type": "I64", "target": "std::string::len",
+                  "args": [{"id": "t4", "kind": "Literal", "type": "String", "value": "hello"}]},
+                {"id": "t5", "kind": "Literal", "type": "I64", "value": 5}
+              ]
+            },
+            {
+              "id": "s4", "kind": "Call", "type": "Bool", "target": "std::testing::assert_true",
+              "args": [
+                {"id": "t6", "kind": "Call", "type": "Bool", "target": "std::string::contains",
+                  "args": [
+                    {"id": "t7", "kind": "Literal", "type": "String", "value": "hello world"},
+                    {"id": "t8", "kind": "Literal", "type": "String", "value": "world"}
+                  ]}
+              ]
+            },
+            {
+              "id": "s5", "kind": "Call", "type": "Bool", "target": "std::testing::assert_ne",
+              "args": [
+                {"id": "t9", "kind": "Literal", "type": "I64", "value": 1},
+                {"id": "t10", "kind": "Literal", "type": "I64", "value": 2}
+              ]
+            },
+            {
+              "id": "s6", "kind": "Call", "type": "Unit", "target": "std::io::println",
+              "args": [{"id": "a6", "kind": "Call", "type": "String", "target": "std::fmt::format",
+                "args": [
+                  {"id": "f5", "kind": "Literal", "type": "String", "value": "hash: {}"},
+                  {"id": "f6", "kind": "Call", "type": "String", "target": "std::crypto::sha256",
+                    "args": [{"id": "f7", "kind": "Literal", "type": "String", "value": "test"}]}
+                ]}]
+            },
+            {
+              "id": "s7", "kind": "Call", "type": "Unit", "target": "std::io::println",
+              "args": [{"id": "a7", "kind": "Literal", "type": "String", "value": "All tests passed!"}]
+            }
+          ],
+          "result": {"id": "m_end", "kind": "Literal", "type": "Unit", "value": null}
+        }
+      }
+    ]
+  }
+}

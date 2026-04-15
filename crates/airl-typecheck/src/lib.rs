@@ -560,6 +560,68 @@ impl TypeChecker {
             },
         );
 
+        // Time
+        b.insert(
+            "std::time::now_ms".into(),
+            FuncSig {
+                params: vec![],
+                returns: Type::I64,
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::time::now_secs".into(),
+            FuncSig {
+                params: vec![],
+                returns: Type::I64,
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::time::sleep_ms".into(),
+            FuncSig {
+                params: vec![Type::I64],
+                returns: Type::Unit,
+                effects: vec![Effect::IO],
+            },
+        );
+
+        // Crypto
+        b.insert(
+            "std::crypto::sha256".into(),
+            FuncSig {
+                params: vec![Type::String],
+                returns: Type::String,
+                effects: vec![Effect::Pure],
+            },
+        );
+
+        // Testing
+        b.insert(
+            "std::testing::assert_eq".into(),
+            FuncSig {
+                params: vec![Type::Unit, Type::Unit],
+                returns: Type::Bool,
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::testing::assert_ne".into(),
+            FuncSig {
+                params: vec![Type::Unit, Type::Unit],
+                returns: Type::Bool,
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::testing::assert_true".into(),
+            FuncSig {
+                params: vec![Type::Bool],
+                returns: Type::Bool,
+                effects: vec![Effect::IO],
+            },
+        );
+
         // Process
         b.insert(
             "std::process::exit".into(),

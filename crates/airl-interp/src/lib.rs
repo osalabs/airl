@@ -792,6 +792,75 @@ impl<'a> Interpreter<'a> {
                 _ => Value::Unit,
             },
 
+            // Time
+            "std::time::now_ms" => {
+                let ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as i64)
+                    .unwrap_or(0);
+                Value::Integer(ms)
+            }
+            "std::time::now_secs" => {
+                let secs = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+                Value::Integer(secs)
+            }
+            "std::time::sleep_ms" => {
+                if let Some(Value::Integer(ms)) = args.first() {
+                    std::thread::sleep(std::time::Duration::from_millis(*ms as u64));
+                }
+                Value::Unit
+            }
+
+            // Crypto
+            "std::crypto::sha256" => match args.first() {
+                Some(Value::Str(s)) => {
+                    let hash = simple_hash(s.as_bytes());
+                    Value::Str(hash)
+                }
+                _ => Value::Str(String::new()),
+            },
+
+            // Testing framework
+            "std::testing::assert_eq" => {
+                let lhs = args.first().cloned().unwrap_or(Value::Unit);
+                let rhs = args.get(1).cloned().unwrap_or(Value::Unit);
+                if lhs == rhs {
+                    Value::Boolean(true)
+                } else {
+                    let msg = format!(
+                        "assertion failed: {} != {}",
+                        lhs.to_display_string(),
+                        rhs.to_display_string()
+                    );
+                    self.stdout.push_str(&format!("FAIL: {msg}\n"));
+                    Value::Boolean(false)
+                }
+            }
+            "std::testing::assert_ne" => {
+                let lhs = args.first().cloned().unwrap_or(Value::Unit);
+                let rhs = args.get(1).cloned().unwrap_or(Value::Unit);
+                if lhs != rhs {
+                    Value::Boolean(true)
+                } else {
+                    let msg = format!(
+                        "assertion failed: values are equal: {}",
+                        lhs.to_display_string()
+                    );
+                    self.stdout.push_str(&format!("FAIL: {msg}\n"));
+                    Value::Boolean(false)
+                }
+            }
+            "std::testing::assert_true" => match args.first() {
+                Some(Value::Boolean(true)) => Value::Boolean(true),
+                _ => {
+                    self.stdout.push_str("FAIL: expected true\n");
+                    Value::Boolean(false)
+                }
+            },
+
             // File I/O
             "std::io::read_file" => match args.first() {
                 Some(Value::Str(path)) => match std::fs::read_to_string(path) {
@@ -942,6 +1011,25 @@ impl<'a> Interpreter<'a> {
             }),
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Crypto helper
+// ---------------------------------------------------------------------------
+
+/// Simple deterministic hash (FNV-1a-based hex digest, not cryptographic).
+/// Used as a placeholder for std::crypto::sha256 without adding external deps.
+fn simple_hash(data: &[u8]) -> String {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for &byte in data {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    // Produce a 64-char hex string (pad with repeated hash)
+    let h2 = hash.wrapping_mul(0x9e3779b97f4a7c15).wrapping_add(hash >> 3);
+    let h3 = h2.wrapping_mul(0x517cc1b727220a95).wrapping_add(h2 >> 5);
+    let h4 = h3.wrapping_mul(0x6c62272e07bb0142).wrapping_add(h3 >> 7);
+    format!("{hash:016x}{h2:016x}{h3:016x}{h4:016x}")
 }
 
 // ---------------------------------------------------------------------------
