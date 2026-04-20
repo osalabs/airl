@@ -692,6 +692,50 @@ impl TypeChecker {
             },
         );
 
+        // Concurrency
+        b.insert(
+            "std::concurrency::spawn".into(),
+            FuncSig {
+                params: vec![Type::String], // func name + optional args
+                returns: Type::I64,         // handle ID
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::concurrency::await_result".into(),
+            FuncSig {
+                params: vec![Type::I64],
+                returns: Type::Unit, // returns whatever the spawned function returned
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::concurrency::sleep".into(),
+            FuncSig {
+                params: vec![Type::I64],
+                returns: Type::Unit,
+                effects: vec![Effect::IO],
+            },
+        );
+        b.insert(
+            "std::concurrency::thread_id".into(),
+            FuncSig {
+                params: vec![],
+                returns: Type::I64,
+                effects: vec![Effect::IO],
+            },
+        );
+
+        // HTTP server
+        b.insert(
+            "std::net::serve_once".into(),
+            FuncSig {
+                params: vec![Type::I64, Type::String],
+                returns: Type::Bool,
+                effects: vec![Effect::IO],
+            },
+        );
+
         // HTTP client
         b.insert(
             "std::net::http_get".into(),

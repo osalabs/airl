@@ -1,0 +1,45 @@
+{
+  "format_version": "0.1.0",
+  "module": {
+    "id": "mod_mathlib",
+    "name": "mathlib",
+    "metadata": {
+      "version": "1.0.0",
+      "description": "Math utilities library",
+      "author": "agent-001",
+      "created_at": "2026-04-15T12:00:00Z"
+    },
+    "imports": [],
+    "exports": [
+      {"kind": "Function", "name": "double"},
+      {"kind": "Function", "name": "square"}
+    ],
+    "types": [],
+    "functions": [
+      {
+        "id": "f_double",
+        "name": "double",
+        "params": [{"name": "n", "type": "I64", "index": 0}],
+        "returns": "I64",
+        "effects": ["Pure"],
+        "body": {
+          "id": "d1", "kind": "BinOp", "type": "I64", "op": "Mul",
+          "lhs": {"id": "d2", "kind": "Param", "type": "I64", "name": "n", "index": 0},
+          "rhs": {"id": "d3", "kind": "Literal", "type": "I64", "value": 2}
+        }
+      },
+      {
+        "id": "f_square",
+        "name": "square",
+        "params": [{"name": "n", "type": "I64", "index": 0}],
+        "returns": "I64",
+        "effects": ["Pure"],
+        "body": {
+          "id": "sq1", "kind": "BinOp", "type": "I64", "op": "Mul",
+          "lhs": {"id": "sq2", "kind": "Param", "type": "I64", "name": "n", "index": 0},
+          "rhs": {"id": "sq3", "kind": "Param", "type": "I64", "name": "n", "index": 0}
+        }
+      }
+    ]
+  }
+}

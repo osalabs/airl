@@ -24,6 +24,9 @@ enum Commands {
         /// Use the Cranelift JIT compiler instead of the interpreter
         #[arg(long)]
         compiled: bool,
+        /// Additional directories to load modules from (multi-module support)
+        #[arg(long)]
+        include: Vec<PathBuf>,
     },
     /// Type-check an AIRL program without running it
     Check {
@@ -87,8 +90,14 @@ async fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Run { file, compiled } => {
-            if compiled {
+        Commands::Run {
+            file,
+            compiled,
+            include,
+        } => {
+            if !include.is_empty() {
+                cmd_run_workspace(&file, &include, compiled);
+            } else if compiled {
                 cmd_compile(&file);
             } else {
                 cmd_run(&file);
@@ -172,6 +181,77 @@ fn cmd_run(file: &PathBuf) {
         Err(e) => {
             eprintln!("runtime error: {e}");
             process::exit(1);
+        }
+    }
+}
+
+fn cmd_run_workspace(main_file: &std::path::Path, include_dirs: &[PathBuf], compiled: bool) {
+    use airl_project::workspace::Workspace;
+
+    let mut ws = Workspace::new();
+
+    // Load main file
+    if let Err(e) = ws.load_file(main_file) {
+        eprintln!("error loading {}: {e}", main_file.display());
+        process::exit(1);
+    }
+
+    // Load additional directories
+    for dir in include_dirs {
+        if let Err(e) = ws.load_dir(dir.as_path()) {
+            eprintln!("error loading {}: {e}", dir.display());
+            process::exit(1);
+        }
+    }
+
+    // Resolve into merged module
+    let merged = match ws.resolve() {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("workspace error: {e}");
+            process::exit(1);
+        }
+    };
+
+    // Type check
+    let tc = airl_typecheck::typecheck(&merged);
+    for w in &tc.warnings {
+        eprintln!("{w}");
+    }
+    if !tc.is_ok() {
+        for e in &tc.errors {
+            eprintln!("{e}");
+        }
+        process::exit(1);
+    }
+
+    eprintln!(
+        "[workspace: {} module(s), {} function(s)]",
+        ws.modules.len(),
+        merged.functions().len()
+    );
+
+    if compiled {
+        match airl_compile::compile_and_run(&merged) {
+            Ok(output) => {
+                print!("{}", output.stdout);
+                process::exit(output.exit_code);
+            }
+            Err(e) => {
+                eprintln!("compile error: {e}");
+                process::exit(1);
+            }
+        }
+    } else {
+        match airl_interp::interpret(&merged) {
+            Ok(output) => {
+                print!("{}", output.stdout);
+                process::exit(output.exit_code);
+            }
+            Err(e) => {
+                eprintln!("runtime error: {e}");
+                process::exit(1);
+            }
         }
     }
 }

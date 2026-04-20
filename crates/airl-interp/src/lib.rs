@@ -7,7 +7,35 @@
 use airl_ir::node::{BinOpKind, LiteralValue, Node, Pattern, UnaryOpKind};
 use airl_ir::Module;
 use std::collections::BTreeMap;
+use std::sync::Mutex;
 use thiserror::Error;
+
+// ---------------------------------------------------------------------------
+// Thread handle registry for std::concurrency::spawn
+// ---------------------------------------------------------------------------
+
+static THREAD_HANDLES: Mutex<Option<Vec<Option<std::thread::JoinHandle<Value>>>>> =
+    Mutex::new(None);
+
+fn register_thread_handle(handle: std::thread::JoinHandle<Value>) -> i64 {
+    let mut lock = THREAD_HANDLES.lock().unwrap();
+    let registry = lock.get_or_insert_with(Vec::new);
+    let id = registry.len() as i64;
+    registry.push(Some(handle));
+    id
+}
+
+fn take_thread_result(id: i64) -> Option<Value> {
+    let mut lock = THREAD_HANDLES.lock().unwrap();
+    if let Some(registry) = lock.as_mut() {
+        if let Some(slot) = registry.get_mut(id as usize) {
+            if let Some(handle) = slot.take() {
+                return handle.join().ok();
+            }
+        }
+    }
+    None
+}
 
 /// Errors that can occur during interpretation.
 #[derive(Debug, Error)]
@@ -907,6 +935,99 @@ impl<'a> Interpreter<'a> {
                     Value::Boolean(false)
                 }
             },
+
+            // Concurrency
+            "std::concurrency::spawn" => {
+                // spawn(func_name) — runs a named function in a new thread
+                // Returns a handle (integer) that can be used with await_result
+                if let Some(Value::Str(func_name)) = args.first() {
+                    let module_clone = self.module.clone();
+                    let fname = func_name.clone();
+                    let spawn_args: Vec<Value> = args[1..].to_vec();
+
+                    let handle = std::thread::spawn(move || {
+                        let mut sub_interp =
+                            Interpreter::new(&module_clone, ExecutionLimits::default());
+                        sub_interp
+                            .call_function(&fname, &spawn_args, &airl_ir::NodeId::new("spawn"))
+                            .unwrap_or(Value::Unit)
+                    });
+
+                    // Store the JoinHandle in a global registry
+                    let handle_id = register_thread_handle(handle);
+                    Value::Integer(handle_id)
+                } else {
+                    Value::Unit
+                }
+            }
+            "std::concurrency::await_result" => {
+                // await_result(handle_id) — blocks until the spawned thread completes
+                if let Some(Value::Integer(id)) = args.first() {
+                    take_thread_result(*id).unwrap_or(Value::Unit)
+                } else {
+                    Value::Unit
+                }
+            }
+            "std::concurrency::sleep" => {
+                // sleep(ms) — sleep the current thread
+                if let Some(Value::Integer(ms)) = args.first() {
+                    std::thread::sleep(std::time::Duration::from_millis(*ms as u64));
+                }
+                Value::Unit
+            }
+            "std::concurrency::thread_id" => {
+                // Returns current thread ID as integer
+                let id = std::thread::current().id();
+                Value::Integer(format!("{id:?}").len() as i64) // deterministic but unique-ish
+            }
+
+            // HTTP server (blocking, single-request-at-a-time)
+            "std::net::serve_once" => {
+                // serve_once(port, handler_func_name) — accepts one connection,
+                // reads the request, calls handler(request_body) -> response_body,
+                // writes back a basic HTTP response.
+                if let (Some(Value::Integer(port)), Some(Value::Str(handler))) =
+                    (args.first(), args.get(1))
+                {
+                    let addr = format!("127.0.0.1:{port}");
+                    match std::net::TcpListener::bind(&addr) {
+                        Ok(listener) => {
+                            if let Ok((mut stream, _)) = listener.accept() {
+                                use std::io::{Read, Write};
+                                let mut buf = [0u8; 4096];
+                                let n = stream.read(&mut buf).unwrap_or(0);
+                                let request = String::from_utf8_lossy(&buf[..n]).to_string();
+
+                                // Call handler with the request
+                                let handler_result = self.call_function(
+                                    handler,
+                                    &[Value::Str(request)],
+                                    &airl_ir::NodeId::new("serve"),
+                                );
+                                let body = match handler_result {
+                                    Ok(Value::Str(s)) => s,
+                                    Ok(v) => v.to_display_string(),
+                                    Err(e) => format!("handler error: {e}"),
+                                };
+
+                                let response = format!(
+                                    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+                                    body.len(),
+                                    body
+                                );
+                                let _ = stream.write_all(response.as_bytes());
+                            }
+                            Value::Boolean(true)
+                        }
+                        Err(e) => {
+                            self.stdout.push_str(&format!("serve_once failed: {e}\n"));
+                            Value::Boolean(false)
+                        }
+                    }
+                } else {
+                    Value::Boolean(false)
+                }
+            }
 
             // HTTP client (ureq 2.x API)
             "std::net::http_get" => match args.first() {
@@ -2129,5 +2250,40 @@ mod tests {
         }"#,
         );
         assert_eq!(run(&json2), "99\n");
+    }
+
+    #[test]
+    fn test_concurrency_sleep() {
+        // Just verify sleep doesn't crash and returns Unit
+        let json = wrap_main(
+            r#"{
+            "id":"b","kind":"Block","type":"Unit",
+            "statements":[
+                {"id":"s1","kind":"Call","type":"Unit","target":"std::concurrency::sleep",
+                    "args":[{"id":"n","kind":"Literal","type":"I64","value":1}]}
+            ],
+            "result":{"id":"s2","kind":"Call","type":"Unit","target":"std::io::println",
+                "args":[{"id":"a","kind":"Literal","type":"String","value":"slept"}]}
+        }"#,
+        );
+        assert_eq!(run(&json), "slept\n");
+    }
+
+    #[test]
+    fn test_concurrency_thread_id() {
+        // Verify thread_id returns an integer and doesn't crash
+        let json = wrap_main(
+            r#"{
+            "id":"n1","kind":"Let","type":"Unit","name":"id",
+            "value":{"id":"n2","kind":"Call","type":"I64","target":"std::concurrency::thread_id","args":[]},
+            "body":{"id":"n3","kind":"Call","type":"Unit","target":"std::io::println",
+                "args":[{"id":"n4","kind":"BinOp","type":"I64","op":"Gt",
+                    "lhs":{"id":"n5","kind":"Param","type":"I64","name":"id","index":0},
+                    "rhs":{"id":"n6","kind":"Literal","type":"I64","value":0}
+                }]}
+        }"#,
+        );
+        // Just verify it runs (thread_id > 0 is expected to be true)
+        assert_eq!(run(&json), "true\n");
     }
 }

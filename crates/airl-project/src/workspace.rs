@@ -67,14 +67,25 @@ impl Workspace {
     }
 
     /// Load all `.airl.json` files from a directory.
+    /// Silently skips modules with names that are already loaded.
     pub fn load_dir(&mut self, dir: &Path) -> Result<Vec<String>, WorkspaceError> {
         let mut loaded = Vec::new();
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.to_string_lossy().ends_with(".airl.json") {
-                let name = self.load_file(&path)?;
-                loaded.push(name);
+                // Peek at the module name before adding
+                let json = std::fs::read_to_string(&path)?;
+                let module: Module =
+                    serde_json::from_str(&json).map_err(|e| WorkspaceError::Parse {
+                        file: path.display().to_string(),
+                        error: e.to_string(),
+                    })?;
+                if !self.modules.contains_key(&module.module.name) {
+                    let name = module.module.name.clone();
+                    self.modules.insert(name.clone(), module);
+                    loaded.push(name);
+                }
             }
         }
         Ok(loaded)
