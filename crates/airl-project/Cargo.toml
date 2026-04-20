@@ -2,6 +2,13 @@
 name = "airl-project"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Project and workspace management for AIRL: history, queries, projections"
 
 [dependencies]
 airl-ir = { workspace = true }

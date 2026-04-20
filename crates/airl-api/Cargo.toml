@@ -2,6 +2,13 @@
 name = "airl-api"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "HTTP API server for AIRL agent interactions with Bearer auth"
 
 [dependencies]
 airl-ir = { workspace = true }

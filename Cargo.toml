@@ -15,6 +15,11 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+repository = "https://github.com/osalabs/airl"
+homepage = "https://github.com/osalabs/airl"
+authors = ["AIRL Contributors"]
+keywords = ["ai", "ir", "compiler", "interpreter", "agent"]
+categories = ["compilers", "development-tools", "wasm"]
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -25,11 +30,11 @@ clap = { version = "4", features = ["derive"] }
 axum = { version = "0.7", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 
-# Internal crates
-airl-ir = { path = "crates/airl-ir" }
-airl-typecheck = { path = "crates/airl-typecheck" }
-airl-interp = { path = "crates/airl-interp" }
-airl-compile = { path = "crates/airl-compile" }
-airl-patch = { path = "crates/airl-patch" }
-airl-project = { path = "crates/airl-project" }
-airl-api = { path = "crates/airl-api" }
+# Internal crates (version + path for crates.io publishing)
+airl-ir = { path = "crates/airl-ir", version = "0.1.0" }
+airl-typecheck = { path = "crates/airl-typecheck", version = "0.1.0" }
+airl-interp = { path = "crates/airl-interp", version = "0.1.0" }
+airl-compile = { path = "crates/airl-compile", version = "0.1.0" }
+airl-patch = { path = "crates/airl-patch", version = "0.1.0" }
+airl-project = { path = "crates/airl-project", version = "0.1.0" }
+airl-api = { path = "crates/airl-api", version = "0.1.0" }

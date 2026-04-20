@@ -2,6 +2,13 @@
 name = "airl-compile"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Cranelift JIT compiler and WASM backend for AIRL IR"
 
 [dependencies]
 airl-ir = { workspace = true }

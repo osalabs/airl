@@ -2,6 +2,13 @@
 name = "airl-interp"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Tree-walking interpreter for AIRL IR with 74 builtins"
 
 [dependencies]
 airl-ir = { workspace = true }

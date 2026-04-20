@@ -2,6 +2,13 @@
 name = "airl-ir"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Core IR data structures for AIRL (AI-native Intermediate Representation Language)"
 
 [dependencies]
 serde = { workspace = true }
