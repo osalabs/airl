@@ -70,14 +70,12 @@ impl<'a> WasmCompiler<'a> {
             Node::Literal {
                 value: LiteralValue::Str(s),
                 ..
-            } => {
-                if !self.string_offsets.contains_key(s) {
-                    let offset = self.string_data.len() as u32;
-                    let bytes = s.as_bytes();
-                    self.string_data.extend_from_slice(bytes);
-                    self.string_offsets
-                        .insert(s.clone(), (offset, bytes.len() as u32));
-                }
+            } if !self.string_offsets.contains_key(s) => {
+                let offset = self.string_data.len() as u32;
+                let bytes = s.as_bytes();
+                self.string_data.extend_from_slice(bytes);
+                self.string_offsets
+                    .insert(s.clone(), (offset, bytes.len() as u32));
             }
             Node::Let { value, body, .. } => {
                 self.collect_strings_from_node(value);

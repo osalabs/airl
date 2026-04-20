@@ -423,10 +423,8 @@ fn collect_string_literals(node: &Node, table: &mut Vec<String>) {
         Node::Literal {
             value: LiteralValue::Str(s),
             ..
-        } => {
-            if !table.contains(s) {
-                table.push(s.clone());
-            }
+        } if !table.contains(s) => {
+            table.push(s.clone());
         }
         Node::Let { value, body, .. } => {
             collect_string_literals(value, table);
