@@ -209,6 +209,99 @@ pub async fn typecheck(State(state): State<AppState>) -> impl IntoResponse {
     }
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct ConstraintsRequest {
+    pub constraints: Vec<airl_project::constraints::Constraint>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ConstraintsResponse {
+    pub ok: bool,
+    pub violations: Vec<airl_project::constraints::ConstraintViolation>,
+}
+
+pub async fn check_constraints(
+    State(state): State<AppState>,
+    Json(req): Json<ConstraintsRequest>,
+) -> impl IntoResponse {
+    match with_project(&state, |p| p.check_constraints(&req.constraints)) {
+        Ok(report) => (
+            StatusCode::OK,
+            Json(ConstraintsResponse {
+                ok: report.is_ok(),
+                violations: report.violations,
+            }),
+        )
+            .into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct DiffRequest {
+    pub other_module_json: String,
+}
+
+pub async fn diff_module(
+    State(state): State<AppState>,
+    Json(req): Json<DiffRequest>,
+) -> impl IntoResponse {
+    let current = match with_project(&state, |p| p.module.clone()) {
+        Ok(m) => m,
+        Err(e) => return e.into_response(),
+    };
+    let other: airl_ir::Module = match serde_json::from_str(&req.other_module_json) {
+        Ok(m) => m,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: e.to_string(),
+                    code: "INVALID_IR".to_string(),
+                }),
+            )
+                .into_response();
+        }
+    };
+    let diff = airl_project::diff::diff(&current, &other);
+    (StatusCode::OK, Json(diff)).into_response()
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct DeadCodeQuery {
+    #[serde(default = "default_entry")]
+    pub entry: String,
+}
+fn default_entry() -> String {
+    "main".to_string()
+}
+
+pub async fn find_dead_code(
+    State(state): State<AppState>,
+    Query(q): Query<DeadCodeQuery>,
+) -> impl IntoResponse {
+    match with_project(&state, |p| {
+        airl_project::queries::find_dead_code(&p.module, &q.entry)
+    }) {
+        Ok(report) => (StatusCode::OK, Json(report)).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+pub async fn builtin_usage(State(state): State<AppState>) -> impl IntoResponse {
+    match with_project(&state, |p| airl_project::queries::builtin_usage(&p.module)) {
+        Ok(usage) => (StatusCode::OK, Json(usage)).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+pub async fn effect_surface(State(state): State<AppState>) -> impl IntoResponse {
+    match with_project(&state, |p| airl_project::queries::effect_surface(&p.module)) {
+        Ok(surface) => (StatusCode::OK, Json(surface)).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
 pub async fn interpret(
     State(state): State<AppState>,
     Json(req): Json<InterpretRequest>,

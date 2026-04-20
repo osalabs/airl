@@ -20,6 +20,11 @@ pub fn build_router(state: AppState, auth_config: AuthConfig) -> Router {
         .route("/patch/undo", post(handlers::undo_patch))
         // Build & run
         .route("/typecheck", post(handlers::typecheck))
+        .route("/constraints/check", post(handlers::check_constraints))
+        .route("/diff", post(handlers::diff_module))
+        .route("/query/dead-code", get(handlers::find_dead_code))
+        .route("/query/builtin-usage", get(handlers::builtin_usage))
+        .route("/query/effect-surface", get(handlers::effect_surface))
         .route("/interpret", post(handlers::interpret))
         .route("/compile", post(handlers::compile))
         .route("/compile/wasm", post(handlers::compile_wasm))

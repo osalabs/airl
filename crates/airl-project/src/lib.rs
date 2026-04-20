@@ -4,7 +4,10 @@
 //! applying patches with undo history, querying functions/types,
 //! constraint checking, and text projections.
 
+pub mod constraints;
+pub mod diff;
 pub mod projection;
+pub mod queries;
 pub mod workspace;
 
 use airl_ir::module::Module;
@@ -164,6 +167,14 @@ impl Project {
     /// Run type checker on the current module.
     pub fn typecheck(&self) -> TypeCheckResult {
         airl_typecheck::typecheck(&self.module)
+    }
+
+    /// Check the module against a set of constraints.
+    pub fn check_constraints(
+        &self,
+        constraints: &[constraints::Constraint],
+    ) -> constraints::ConstraintReport {
+        constraints::check_all(constraints, &self.module)
     }
 
     /// Find functions matching a name pattern (simple substring match).
