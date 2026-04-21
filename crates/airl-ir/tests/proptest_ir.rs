@@ -24,10 +24,6 @@ impl Rng {
     fn range(&mut self, lo: i64, hi: i64) -> i64 {
         lo + (self.next() as i64).abs() % (hi - lo + 1)
     }
-    fn pick<'a, T>(&mut self, items: &'a [T]) -> &'a T {
-        let idx = (self.next() as usize) % items.len();
-        &items[idx]
-    }
     fn string(&mut self, len: usize) -> String {
         (0..len)
             .map(|_| (b'a' + (self.next() % 26) as u8) as char)
@@ -42,7 +38,7 @@ fn random_literal(rng: &mut Rng) -> (LiteralValue, Type) {
             (LiteralValue::Integer(v), Type::I64)
         }
         1 => {
-            let b = rng.next() % 2 == 0;
+            let b = rng.next().is_multiple_of(2);
             (LiteralValue::Boolean(b), Type::Bool)
         }
         2 => {
@@ -55,10 +51,10 @@ fn random_literal(rng: &mut Rng) -> (LiteralValue, Type) {
 }
 
 fn random_node(rng: &mut Rng, depth: usize) -> Node {
-    if depth == 0 || rng.next() % 3 == 0 {
+    if depth == 0 || rng.next().is_multiple_of(3) {
         let (val, ty) = random_literal(rng);
         return Node::Literal {
-            id: NodeId::new(&format!("n{}", rng.next() % 100000)),
+            id: NodeId::new(format!("n{}", rng.next() % 100000)),
             node_type: ty,
             value: val,
         };
@@ -69,16 +65,16 @@ fn random_node(rng: &mut Rng, depth: usize) -> Node {
             // BinOp (integer)
             let ops = [BinOpKind::Add, BinOpKind::Sub, BinOpKind::Mul];
             Node::BinOp {
-                id: NodeId::new(&format!("b{}", rng.next() % 100000)),
+                id: NodeId::new(format!("b{}", rng.next() % 100000)),
                 op: ops[(rng.next() as usize) % ops.len()].clone(),
                 node_type: Type::I64,
                 lhs: Box::new(Node::Literal {
-                    id: NodeId::new(&format!("l{}", rng.next() % 100000)),
+                    id: NodeId::new(format!("l{}", rng.next() % 100000)),
                     node_type: Type::I64,
                     value: LiteralValue::Integer(rng.range(-100, 100)),
                 }),
                 rhs: Box::new(Node::Literal {
-                    id: NodeId::new(&format!("r{}", rng.next() % 100000)),
+                    id: NodeId::new(format!("r{}", rng.next() % 100000)),
                     node_type: Type::I64,
                     value: LiteralValue::Integer(rng.range(-100, 100)),
                 }),
@@ -87,12 +83,12 @@ fn random_node(rng: &mut Rng, depth: usize) -> Node {
         1 => {
             // If
             Node::If {
-                id: NodeId::new(&format!("if{}", rng.next() % 100000)),
+                id: NodeId::new(format!("if{}", rng.next() % 100000)),
                 node_type: Type::I64,
                 cond: Box::new(Node::Literal {
-                    id: NodeId::new(&format!("c{}", rng.next() % 100000)),
+                    id: NodeId::new(format!("c{}", rng.next() % 100000)),
                     node_type: Type::Bool,
-                    value: LiteralValue::Boolean(rng.next() % 2 == 0),
+                    value: LiteralValue::Boolean(rng.next().is_multiple_of(2)),
                 }),
                 then_branch: Box::new(random_node(rng, depth - 1)),
                 else_branch: Box::new(random_node(rng, depth - 1)),
@@ -102,11 +98,11 @@ fn random_node(rng: &mut Rng, depth: usize) -> Node {
             // Call println
             let (val, ty) = random_literal(rng);
             Node::Call {
-                id: NodeId::new(&format!("call{}", rng.next() % 100000)),
+                id: NodeId::new(format!("call{}", rng.next() % 100000)),
                 node_type: Type::Unit,
                 target: "std::io::println".to_string(),
                 args: vec![Node::Literal {
-                    id: NodeId::new(&format!("a{}", rng.next() % 100000)),
+                    id: NodeId::new(format!("a{}", rng.next() % 100000)),
                     node_type: ty,
                     value: val,
                 }],
@@ -115,7 +111,7 @@ fn random_node(rng: &mut Rng, depth: usize) -> Node {
         _ => {
             let (val, ty) = random_literal(rng);
             Node::Literal {
-                id: NodeId::new(&format!("lit{}", rng.next() % 100000)),
+                id: NodeId::new(format!("lit{}", rng.next() % 100000)),
                 node_type: ty,
                 value: val,
             }
@@ -142,7 +138,7 @@ fn random_module(rng: &mut Rng) -> Module {
             _ => Type::Unit,
         };
         functions.push(FuncDef {
-            id: FuncId::new(&format!("f_{name}")),
+            id: FuncId::new(format!("f_{name}")),
             name,
             params: vec![],
             returns,

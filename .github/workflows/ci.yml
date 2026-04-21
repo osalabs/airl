@@ -21,27 +21,33 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      - name: Cache cargo registry and build
-        uses: actions/cache@v4
+      # Swatinem/rust-cache is purpose-built for Rust: it keys on Cargo.lock +
+      # rust-toolchain + OS, only caches useful target/ artifacts, and prunes
+      # stale entries automatically. Typical speedup: ~6min -> ~1min on warm runs.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          shared-key: "stable-ubuntu"
+          # Also cache target/ for the workspace; the action auto-detects this.
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
       - name: Check formatting
-        run: cargo fmt -- --check
+        run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Rustdoc (deny missing docs)
+        run: cargo doc --workspace --no-deps
+        env:
+          RUSTDOCFLAGS: "-D warnings"
 
       - name: Build
-        run: cargo build
+        run: cargo build --workspace
 
       - name: Test
-        run: cargo test
+        run: cargo test --workspace
 
       - name: Run examples (interpreter)
         run: |

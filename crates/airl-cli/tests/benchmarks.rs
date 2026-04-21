@@ -141,7 +141,7 @@ fn bench_wasm_compilation_speed() {
     let iterations = 100;
     for _ in 0..iterations {
         let bytes = airl_compile::wasm::compile_to_wasm(&module).unwrap();
-        assert!(bytes.len() > 0);
+        assert!(!bytes.is_empty());
     }
     let elapsed = start.elapsed();
 
