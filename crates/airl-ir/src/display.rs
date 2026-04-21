@@ -55,11 +55,14 @@ impl<'a> fmt::Display for FuncDefDisplay<'a> {
 
 /// A helper for pretty-printing a Node tree with indentation.
 pub struct NodeTreeDisplay<'a> {
+    /// The root node to render.
     pub node: &'a Node,
+    /// Current indentation depth (in 2-space units).
     pub indent: usize,
 }
 
 impl<'a> NodeTreeDisplay<'a> {
+    /// Create a new display wrapper starting at indent 0.
     pub fn new(node: &'a Node) -> Self {
         NodeTreeDisplay { node, indent: 0 }
     }

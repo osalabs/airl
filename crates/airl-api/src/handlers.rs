@@ -1,4 +1,10 @@
 //! HTTP request handlers for the AIRL API.
+//!
+//! Each `pub async fn` corresponds to a single API route; the request
+//! and response types are mostly thin JSON wrappers over the core
+//! `airl-project`/`airl-interp`/etc. operations.
+
+#![allow(missing_docs)] // handlers and wire-format structs are self-documenting
 
 use axum::extract::{Query, State};
 use axum::http::StatusCode;

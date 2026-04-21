@@ -10,10 +10,15 @@ use std::fmt;
 /// Literal values in the IR.
 #[derive(Clone, Debug, PartialEq)]
 pub enum LiteralValue {
+    /// Signed 64-bit integer literal.
     Integer(i64),
+    /// 64-bit floating-point literal.
     Float(f64),
+    /// Boolean literal (`true` or `false`).
     Boolean(bool),
+    /// String literal.
     Str(String),
+    /// Unit literal `()`.
     Unit,
 }
 
@@ -60,50 +65,82 @@ fn literal_from_json_value(val: &serde_json::Value) -> LiteralValue {
     }
 }
 
-/// Binary operators.
+/// Binary operators for [`Node::BinOp`].
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BinOpKind {
+    /// `a + b` — integer/float addition or string concatenation
     Add,
+    /// `a - b`
     Sub,
+    /// `a * b`
     Mul,
+    /// `a / b` (signed integer division or float division)
     Div,
+    /// `a % b` (signed remainder)
     Mod,
+    /// `a == b`
     Eq,
+    /// `a != b`
     Neq,
+    /// `a < b`
     Lt,
+    /// `a <= b`
     Lte,
+    /// `a > b`
     Gt,
+    /// `a >= b`
     Gte,
+    /// Logical `a && b` (short-circuits)
     And,
+    /// Logical `a || b` (short-circuits)
     Or,
+    /// Bitwise `a & b`
     BitAnd,
+    /// Bitwise `a | b`
     BitOr,
+    /// Bitwise `a ^ b`
     BitXor,
+    /// Left shift `a << b`
     Shl,
+    /// Arithmetic right shift `a >> b`
     Shr,
 }
 
-/// Unary operators.
+/// Unary operators for [`Node::UnaryOp`].
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum UnaryOpKind {
+    /// Arithmetic negation: `-x`
     Neg,
+    /// Logical not: `!x`
     Not,
+    /// Bitwise not: `~x`
     BitNot,
 }
 
-/// A pattern in a match arm.
+/// A pattern in a [`Node::Match`] arm.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum Pattern {
-    Literal { value: LiteralValue },
+    /// Match a specific literal value (integer, string, bool, unit).
+    Literal {
+        /// The literal value to match against.
+        value: LiteralValue,
+    },
+    /// Match anything (catch-all `_`).
     Wildcard,
-    Variable { name: String },
+    /// Match anything and bind to a local variable.
+    Variable {
+        /// The name to bind the scrutinee value to inside the arm body.
+        name: String,
+    },
 }
 
-/// A match arm: pattern -> body.
+/// A single arm of a [`Node::Match`] expression: a pattern and the body to evaluate.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MatchArm {
+    /// The pattern to match against the scrutinee.
     pub pattern: Pattern,
+    /// The body expression, evaluated if the pattern matches.
     pub body: Node,
 }
 
@@ -114,20 +151,28 @@ pub struct MatchArm {
 /// The core IR node enum. Each variant represents a different kind of
 /// computation in the AIRL intermediate representation.
 ///
-/// Nodes are serialized to/from JSON with a "kind" discriminator field.
+/// Nodes are serialized to/from JSON with a `"kind"` discriminator field.
+///
+/// All variants share:
+/// - `id` — unique [`NodeId`] for patch targeting
+/// - `node_type` — the [`Type`] this node evaluates to (except for [`Node::Error`])
 #[derive(Clone, Debug, PartialEq)]
+#[allow(missing_docs)] // field names are self-documenting
 pub enum Node {
+    /// A literal value (integer, float, bool, string, unit).
     Literal {
         id: NodeId,
         node_type: Type,
         value: LiteralValue,
     },
+    /// Reference to a function parameter or let-bound local variable.
     Param {
         id: NodeId,
         name: String,
         index: u32,
         node_type: Type,
     },
+    /// `let name = value in body` — introduces a local binding.
     Let {
         id: NodeId,
         name: String,
@@ -135,6 +180,7 @@ pub enum Node {
         value: Box<Node>,
         body: Box<Node>,
     },
+    /// `if cond then then_branch else else_branch`.
     If {
         id: NodeId,
         node_type: Type,
@@ -142,17 +188,20 @@ pub enum Node {
         then_branch: Box<Node>,
         else_branch: Box<Node>,
     },
+    /// A function call. `target` is a name (user-defined or builtin like `std::io::println`).
     Call {
         id: NodeId,
         node_type: Type,
         target: String,
         args: Vec<Node>,
     },
+    /// `return value` — early exit from a function.
     Return {
         id: NodeId,
         node_type: Type,
         value: Box<Node>,
     },
+    /// Binary operator application (`lhs op rhs`). See [`BinOpKind`].
     BinOp {
         id: NodeId,
         op: BinOpKind,
@@ -160,55 +209,61 @@ pub enum Node {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
+    /// Unary operator application (`op operand`). See [`UnaryOpKind`].
     UnaryOp {
         id: NodeId,
         op: UnaryOpKind,
         node_type: Type,
         operand: Box<Node>,
     },
+    /// A sequence of statements followed by a result expression.
     Block {
         id: NodeId,
         node_type: Type,
         statements: Vec<Node>,
         result: Box<Node>,
     },
+    /// Infinite loop — exit only via `Return` or internal `LoopBreak`.
     Loop {
         id: NodeId,
         node_type: Type,
         body: Box<Node>,
     },
+    /// Pattern match. Evaluates `scrutinee`, then the first matching arm's body.
     Match {
         id: NodeId,
         node_type: Type,
         scrutinee: Box<Node>,
         arms: Vec<MatchArm>,
     },
+    /// Struct literal: `{ field1: v1, field2: v2 }`.
     StructLiteral {
         id: NodeId,
         node_type: Type,
         fields: Vec<(String, Node)>,
     },
+    /// Access a struct field: `object.field`.
     FieldAccess {
         id: NodeId,
         node_type: Type,
         object: Box<Node>,
         field: String,
     },
+    /// Array literal: `[e1, e2, e3]`.
     ArrayLiteral {
         id: NodeId,
         node_type: Type,
         elements: Vec<Node>,
     },
+    /// Array index access: `array[index]`.
     IndexAccess {
         id: NodeId,
         node_type: Type,
         array: Box<Node>,
         index: Box<Node>,
     },
-    Error {
-        id: NodeId,
-        message: String,
-    },
+    /// An explicit error node, used as a placeholder when parsing fails.
+    Error { id: NodeId, message: String },
 }
 
 impl Node {

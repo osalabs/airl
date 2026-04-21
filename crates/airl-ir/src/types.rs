@@ -6,27 +6,35 @@ use std::fmt;
 /// A variant in an enum type definition.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Variant {
+    /// Variant name (e.g. `Ok`, `Err`, `None`, `Some`).
     pub name: Symbol,
+    /// Named fields of this variant, with their types.
     pub fields: Vec<(Symbol, Type)>,
 }
 
 /// The core type system for AIRL IR.
 #[derive(Clone, Debug, PartialEq)]
+#[allow(missing_docs)] // variant names are self-documenting
 pub enum Type {
-    // Primitives
+    /// The unit type `()`. Also used as a wildcard for generic builtins.
     Unit,
+    /// Boolean type: `true` or `false`.
     Bool,
     I8,
     I16,
     I32,
+    /// Signed 64-bit integer (the default integer type in AIRL).
     I64,
     U8,
     U16,
     U32,
     U64,
     F32,
+    /// 64-bit floating-point number.
     F64,
+    /// UTF-8 string.
     String,
+    /// Raw byte array.
     Bytes,
 
     // Composite
@@ -74,9 +82,9 @@ pub enum Type {
 impl Type {
     /// Parse a type string from the JSON IR format into a Type.
     ///
-    /// Handles simple types like "I64", "Bool", "String", "Unit",
-    /// composite types like "Array<I64>", "Optional<String>",
-    /// "Result<I64,String>", and falls back to Named for unknown types.
+    /// Handles simple types like `I64`, `Bool`, `String`, `Unit`,
+    /// composite types like `Array<I64>`, `Optional<String>`,
+    /// `Result<I64,String>`, and falls back to Named for unknown types.
     pub fn from_type_str(s: &str) -> Type {
         let s = s.trim();
         match s {

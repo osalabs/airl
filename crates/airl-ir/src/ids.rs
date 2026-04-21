@@ -2,16 +2,20 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 macro_rules! define_id {
-    ($name:ident) => {
+    ($(#[$doc:meta])* $name:ident) => {
+        $(#[$doc])*
         #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
         #[serde(transparent)]
+        #[allow(missing_docs)]
         pub struct $name(pub String);
 
         impl $name {
+            /// Construct a new ID from any string-like value.
             pub fn new(s: impl Into<String>) -> Self {
                 Self(s.into())
             }
 
+            /// Get the underlying string slice.
             pub fn as_str(&self) -> &str {
                 &self.0
             }
@@ -37,8 +41,23 @@ macro_rules! define_id {
     };
 }
 
-define_id!(NodeId);
-define_id!(TypeId);
-define_id!(FuncId);
-define_id!(ModuleId);
-define_id!(Symbol);
+define_id!(
+    /// Unique identifier for an IR node.
+    NodeId
+);
+define_id!(
+    /// Unique identifier for a type definition.
+    TypeId
+);
+define_id!(
+    /// Unique identifier for a function.
+    FuncId
+);
+define_id!(
+    /// Unique identifier for a module.
+    ModuleId
+);
+define_id!(
+    /// Symbol (interned string) used for names and identifiers.
+    Symbol
+);

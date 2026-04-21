@@ -1,4 +1,9 @@
 //! JSON request/response models for the AIRL API.
+//!
+//! These types mirror the JSON wire format of each endpoint. Field names
+//! correspond directly to JSON keys.
+
+#![allow(missing_docs)] // JSON wire-format structs are self-documenting
 
 use airl_ir::module::Module;
 use airl_patch::{Impact, Patch};

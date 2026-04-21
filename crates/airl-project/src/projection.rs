@@ -9,11 +9,17 @@ use airl_ir::types::Type;
 /// Supported projection languages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Language {
+    /// Render the module as TypeScript source.
     TypeScript,
+    /// Render the module as Python source.
     Python,
 }
 
 impl Language {
+    /// Parse a language identifier (case-insensitive).
+    ///
+    /// Accepts `"typescript"`, `"ts"`, `"python"`, `"py"`. Returns `None`
+    /// for any other input.
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "typescript" | "ts" => Some(Language::TypeScript),

@@ -4,7 +4,26 @@
 //! entire modules, agents produce small semantic patches that are validated,
 //! applied, and can be inverted.
 //!
-//! Key property: `apply(inverse(p), apply(p, module)) == module`
+//! # Key property
+//!
+//! Every patch can be inverted exactly:
+//!
+//! ```text
+//! apply(inverse(p), apply(p, module)) == module
+//! ```
+//!
+//! This is verified by property tests.
+//!
+//! # Modules
+//!
+//! - [`ops`] — [`Patch`] and [`PatchOp`] type definitions
+//! - [`apply`] — forward application of patches
+//! - [`inverse`] — compute undo patches before applying
+//! - [`validate`] — structural checks before application
+//! - [`traverse`] — IR tree walking helpers
+//! - [`impact`] — analysis of which functions a patch affects
+
+#![warn(missing_docs)]
 
 pub mod apply;
 pub mod impact;
@@ -25,23 +44,51 @@ pub use validate::validate_patch;
 /// Errors that can occur during patch operations.
 #[derive(Debug, Error)]
 pub enum PatchError {
+    /// The patch targets a node ID that doesn't exist in the module.
     #[error("node not found: {node_id}")]
-    NodeNotFound { node_id: String },
+    NodeNotFound {
+        /// The node ID that was not found.
+        node_id: String,
+    },
 
+    /// The patch targets a function ID that doesn't exist.
     #[error("function not found: {func_id}")]
-    FunctionNotFound { func_id: String },
+    FunctionNotFound {
+        /// The function ID that was not found.
+        func_id: String,
+    },
 
+    /// Adding a function with a name that already exists in the module.
     #[error("duplicate function name: {name}")]
-    DuplicateFunction { name: String },
+    DuplicateFunction {
+        /// The duplicate name.
+        name: String,
+    },
 
+    /// Structural validation of one of the patch operations failed.
     #[error("validation failed at operation {op_index}: {message}")]
-    ValidationFailed { op_index: usize, message: String },
+    ValidationFailed {
+        /// Index into [`Patch::operations`] where validation failed.
+        op_index: usize,
+        /// Validation error message.
+        message: String,
+    },
 
+    /// The module produced by the patch fails type checking.
     #[error("type check failed after patch: {message}")]
-    TypeCheckFailed { message: String },
+    TypeCheckFailed {
+        /// Summary of type errors.
+        message: String,
+    },
 
+    /// The patch was written against a different module version than the current state.
     #[error("version mismatch: expected {expected}, got {actual}")]
-    VersionMismatch { expected: String, actual: String },
+    VersionMismatch {
+        /// The version the patch was written against.
+        expected: String,
+        /// The actual current module version.
+        actual: String,
+    },
 }
 
 #[cfg(test)]

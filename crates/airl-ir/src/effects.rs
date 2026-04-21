@@ -6,12 +6,28 @@ use std::fmt;
 /// Effects describe the side effects a function or expression may have.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Effect {
+    /// No side effects. Pure functions cannot call non-pure functions.
     Pure,
-    Read { resource: String },
-    Write { resource: String },
+    /// Reads from a named resource (e.g. `"fs"`, `"net"`).
+    Read {
+        /// Name of the resource being read.
+        resource: String,
+    },
+    /// Writes to a named resource (e.g. `"fs"`, `"net"`, `"stdout"`).
+    Write {
+        /// Name of the resource being written.
+        resource: String,
+    },
+    /// Allocates memory on the heap.
     Allocate,
+    /// General I/O (catch-all; subsumes `Read` and `Write`).
     IO,
-    Fail { error_type: String },
+    /// Can fail with a named error type.
+    Fail {
+        /// Name of the error type (e.g. `"IOError"`, `"ParseError"`).
+        error_type: String,
+    },
+    /// May not terminate (used for infinite loops).
     Diverge,
 }
 

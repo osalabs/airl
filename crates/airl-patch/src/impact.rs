@@ -7,10 +7,12 @@ use serde::{Deserialize, Serialize};
 use crate::ops::PatchOp;
 use crate::traverse;
 
-/// The impact of a patch on a module.
+/// The impact of a patch on a module: which functions and types are affected.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Impact {
+    /// Function IDs whose body, signature, or effects were modified.
     pub affected_functions: Vec<FuncId>,
+    /// Type IDs whose definition was modified.
     pub affected_types: Vec<TypeId>,
 }
 

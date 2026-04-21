@@ -17,18 +17,30 @@ pub struct Workspace {
 /// Errors when building or querying a workspace.
 #[derive(Debug, thiserror::Error)]
 pub enum WorkspaceError {
+    /// Filesystem I/O failed while loading a module.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+    /// A file could not be parsed as valid AIRL JSON.
     #[error("JSON parse error in {file}: {error}")]
-    Parse { file: String, error: String },
+    Parse {
+        /// Path to the file that failed to parse.
+        file: String,
+        /// Serde error message.
+        error: String,
+    },
+    /// Two modules with the same name were loaded.
     #[error("duplicate module name: {0}")]
     DuplicateModule(String),
+    /// A module imports an item from a source module that doesn't provide it.
     #[error(
         "unresolved import: module '{module}' imports '{item}' from '{from_module}' which was not found"
     )]
     UnresolvedImport {
+        /// Name of the module that has the unresolved import.
         module: String,
+        /// Name of the source module being imported from.
         from_module: String,
+        /// Name of the missing item.
         item: String,
     },
 }

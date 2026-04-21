@@ -6,11 +6,17 @@
 //!
 //! Supports optional token-based authentication via `Authorization: Bearer <token>`.
 //!
-//! Start the server with `serve()` or use `build_router()` for testing.
+//! Start the server with [`serve`] or use [`build_test_router`] for testing.
 
+#![warn(missing_docs)]
+
+/// Token-based authentication middleware for the API.
 pub mod auth;
+/// HTTP request handlers.
 pub mod handlers;
+/// Request and response types.
 pub mod models;
+/// Route definitions and router construction.
 pub mod routes;
 
 use handlers::AppState;

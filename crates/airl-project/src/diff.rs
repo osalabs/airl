@@ -11,27 +11,45 @@ use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
 /// A semantic diff between two modules.
+///
+/// Produced by [`diff`]. Use [`ModuleDiff::is_empty`] to check for any changes
+/// and [`ModuleDiff::summary`] for a short human-readable overview.
 #[derive(Clone, Debug, Serialize)]
 pub struct ModuleDiff {
+    /// Names of functions present in `new` but not `old`.
     pub added_functions: Vec<String>,
+    /// Names of functions present in `old` but not `new`.
     pub removed_functions: Vec<String>,
+    /// Functions present in both with any change (signature, effects, body).
     pub modified_functions: Vec<FunctionDiff>,
+    /// Imports added in `new` (formatted as `"module::item1,item2"`).
     pub added_imports: Vec<String>,
+    /// Imports removed in `new` (formatted as `"module::item1,item2"`).
     pub removed_imports: Vec<String>,
 }
 
-/// A function-level diff.
+/// A function-level diff showing what changed between two versions.
 #[derive(Clone, Debug, Serialize)]
 pub struct FunctionDiff {
+    /// Function name (same in both versions).
     pub name: String,
+    /// Whether parameters or return type changed.
     pub signature_changed: bool,
+    /// Signature rendering from the old version, e.g. `"fn foo(x: I64) -> Unit"`.
     pub old_signature: String,
+    /// Signature rendering from the new version.
     pub new_signature: String,
+    /// Whether declared effects changed.
     pub effects_changed: bool,
+    /// Effects declared in the old version, as strings.
     pub old_effects: Vec<String>,
+    /// Effects declared in the new version, as strings.
     pub new_effects: Vec<String>,
+    /// Difference in body node count: `new - old`. Negative values indicate shrinkage.
     pub body_node_count_delta: i64,
+    /// Total body node count in the old version.
     pub old_node_count: u32,
+    /// Total body node count in the new version.
     pub new_node_count: u32,
 }
 

@@ -4,8 +4,10 @@ use thiserror::Error;
 /// Errors that can occur when working with the IR graph.
 #[derive(Debug, Error)]
 pub enum IRGraphError {
+    /// JSON (de)serialization failed.
     #[error("JSON serialization error: {0}")]
     SerializeError(#[from] serde_json::Error),
+    /// The IR structure is invalid (e.g. missing required fields).
     #[error("Invalid IR: {0}")]
     InvalidIR(String),
 }
@@ -15,6 +17,7 @@ pub enum IRGraphError {
 /// Provides convenience methods for loading and saving IR modules.
 #[derive(Clone, Debug)]
 pub struct IRGraph {
+    /// The contained module.
     pub module: Module,
 }
 

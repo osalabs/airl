@@ -22,36 +22,66 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "kind")]
 pub enum Constraint {
     /// No function may exceed this cyclomatic complexity.
-    MaxFunctionComplexity { threshold: u32 },
+    MaxFunctionComplexity {
+        /// Maximum allowed cyclomatic complexity.
+        threshold: u32,
+    },
     /// Module must not exceed this total node count.
-    MaxModuleSize { max_nodes: u32 },
+    MaxModuleSize {
+        /// Maximum allowed total node count across all functions.
+        max_nodes: u32,
+    },
     /// Module must not contain more than this many functions.
-    MaxFunctionCount { max: u32 },
+    MaxFunctionCount {
+        /// Maximum allowed number of functions in the module.
+        max: u32,
+    },
     /// Functions matching `pattern` (substring match) must be pure.
-    RequiredEffectPurity { pattern: String },
+    RequiredEffectPurity {
+        /// Substring to match against function names.
+        pattern: String,
+    },
     /// Functions matching `pattern` must not have the given effect.
-    ForbiddenEffect { pattern: String, effect: String },
+    ForbiddenEffect {
+        /// Substring to match against function names.
+        pattern: String,
+        /// The effect name that is forbidden (e.g. `"IO"`, `"Allocate"`).
+        effect: String,
+    },
     /// No function may call `target`.
-    ForbiddenTarget { target: String },
+    ForbiddenTarget {
+        /// The call target that is forbidden (e.g. `"std::process::exit"`).
+        target: String,
+    },
     /// Static call chain must not exceed this depth.
-    MaxCallDepth { max_depth: u32 },
+    MaxCallDepth {
+        /// Maximum allowed static call depth.
+        max_depth: u32,
+    },
 }
 
-/// Result of a constraint check.
+/// A single constraint violation, produced by [`check_constraint`] or [`check_all`].
 #[derive(Clone, Debug, Serialize)]
 pub struct ConstraintViolation {
+    /// Display form of the constraint that was violated, e.g. `"MaxFunctionCount(5)"`.
     pub constraint: String,
+    /// Human-readable description of the violation.
     pub message: String,
+    /// Name of the offending function, if the violation is function-scoped.
     pub function: Option<String>,
 }
 
 /// Result of checking all constraints against a module.
+///
+/// Use [`ConstraintReport::is_ok`] to check if all constraints passed.
 #[derive(Clone, Debug, Serialize)]
 pub struct ConstraintReport {
+    /// All violations found, in the order constraints were checked.
     pub violations: Vec<ConstraintViolation>,
 }
 
 impl ConstraintReport {
+    /// Returns `true` if no constraints were violated.
     pub fn is_ok(&self) -> bool {
         self.violations.is_empty()
     }

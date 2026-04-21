@@ -1,10 +1,31 @@
-//! AIRL Compiler - JIT compilation of AIRL IR via Cranelift.
+//! AIRL Compiler - JIT compilation of AIRL IR via Cranelift, plus a WASM backend.
 //!
-//! Compiles IR modules to native machine code using Cranelift as the backend.
-//! Currently supports JIT execution (compile in memory and run immediately).
+//! Compiles IR modules to native machine code using Cranelift (JIT), or to
+//! portable WebAssembly bytecode via [`wasm`].
 //!
-//! Supported types: I64, Bool, Unit
-//! Supported nodes: Literal, Param, Let, If, BinOp, UnaryOp, Call, Return, Block
+//! # Example (Cranelift JIT)
+//!
+//! ```no_run
+//! use airl_compile::compile_and_run;
+//! use airl_ir::Module;
+//!
+//! let module: Module = serde_json::from_str("...").unwrap();
+//! let output = compile_and_run(&module).unwrap();
+//! print!("{}", output.stdout);
+//! ```
+//!
+//! # Example (WASM)
+//!
+//! ```no_run
+//! use airl_compile::wasm::compile_to_wasm;
+//! use airl_ir::Module;
+//!
+//! let module: Module = serde_json::from_str("...").unwrap();
+//! let bytes = compile_to_wasm(&module).unwrap();
+//! std::fs::write("out.wasm", &bytes).unwrap();
+//! ```
+
+#![warn(missing_docs)]
 
 mod lower;
 pub mod wasm;
@@ -13,28 +34,37 @@ use airl_ir::module::Module;
 use std::time::Instant;
 use thiserror::Error;
 
-/// Errors during compilation.
+/// Errors returned by the compiler.
 #[derive(Debug, Error)]
 pub enum CompileError {
+    /// The module has no `main` function to use as an entry point.
     #[error("no 'main' function found")]
     NoMainFunction,
+    /// Encountered an IR node the compiler doesn't support.
     #[error("unsupported node type: {0}")]
     UnsupportedNode(String),
+    /// Encountered a type the compiler doesn't support.
     #[error("unsupported type: {0}")]
     UnsupportedType(String),
+    /// Cranelift codegen or WASM emission failed.
     #[error("codegen error: {0}")]
     CodegenError(String),
+    /// Module-level error in Cranelift's module layer.
     #[error("module error: {0}")]
     ModuleError(String),
+    /// A referenced function was not found in the module.
     #[error("function not found: {0}")]
     FunctionNotFound(String),
 }
 
-/// Output of compiling and running a module.
+/// Output of compiling and running a module via Cranelift JIT.
 #[derive(Debug, Clone)]
 pub struct CompileOutput {
+    /// Captured standard output.
     pub stdout: String,
+    /// Process-style exit code.
     pub exit_code: i32,
+    /// Compilation time in milliseconds (excludes execution time).
     pub compile_time_ms: u64,
 }
 

@@ -7,56 +7,78 @@ use serde::{Deserialize, Serialize};
 /// Top-level module container matching the JSON IR format.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Module {
+    /// IR format version (semver-style, e.g. `"0.1.0"`).
     pub format_version: String,
+    /// The inner module definition.
     pub module: ModuleInner,
 }
 
 /// The inner module definition containing all declarations.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ModuleInner {
+    /// Module ID (unique identifier, typed).
     pub id: ModuleId,
+    /// Human-readable module name.
     pub name: String,
+    /// Descriptive metadata (version, author, description).
     pub metadata: ModuleMetadata,
+    /// List of `use module::item` imports.
     pub imports: Vec<Import>,
+    /// List of exports this module publishes.
     pub exports: Vec<Export>,
+    /// Type definitions in this module.
     pub types: Vec<TypeDef>,
+    /// Trait definitions (reserved for future use).
     #[serde(default)]
     pub traits: Vec<serde_json::Value>,
+    /// Trait implementations (reserved for future use).
     #[serde(default)]
     pub impls: Vec<serde_json::Value>,
+    /// Compile-time constants (reserved for future use).
     #[serde(default)]
     pub constants: Vec<serde_json::Value>,
+    /// Function definitions in this module.
     pub functions: Vec<FuncDef>,
 }
 
 /// Module metadata.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ModuleMetadata {
+    /// Module version (semver-style).
     pub version: String,
+    /// Human-readable description.
     pub description: String,
+    /// Author name or agent ID.
     pub author: String,
+    /// ISO-8601 creation timestamp.
     pub created_at: String,
 }
 
-/// An import declaration.
+/// An import declaration: `use module::item`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Import {
+    /// The module path being imported from (e.g. `"std::io"`, `"mathlib"`).
     pub module: String,
+    /// Names of items to import from the module.
     pub items: Vec<String>,
 }
 
-/// An export declaration.
+/// An export declaration: makes an item visible to other modules.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Export {
+    /// Kind of exported item (`"Function"`, `"Type"`, `"Constant"`).
     pub kind: String,
+    /// Name of the item being exported.
     pub name: String,
 }
 
-/// A type definition. For now uses serde_json::Value for the body,
-/// but has a typed id field.
+/// A type definition. Currently uses `serde_json::Value` for the body
+/// but has a typed `id` field.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TypeDef {
+    /// Type ID (unique identifier).
     pub id: TypeId,
+    /// Type-specific data (struct fields, enum variants, etc.) as raw JSON.
     #[serde(flatten)]
     pub data: serde_json::Value,
 }
@@ -64,22 +86,31 @@ pub struct TypeDef {
 /// A function definition.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FuncDef {
+    /// Function ID (unique within the module).
     pub id: FuncId,
+    /// Function name (used for calls and exports).
     pub name: String,
+    /// Parameter list.
     #[serde(default)]
     pub params: Vec<ParamDef>,
+    /// Return type.
     pub returns: Type,
+    /// Declared effects this function may have.
     #[serde(default)]
     pub effects: Vec<Effect>,
+    /// The function body (an IR node tree).
     pub body: Node,
 }
 
 /// A function parameter definition.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ParamDef {
+    /// Parameter name (used as a local variable within the function body).
     pub name: String,
+    /// Parameter type.
     #[serde(rename = "type")]
     pub param_type: Type,
+    /// Position in the parameter list (0-based).
     #[serde(default)]
     pub index: u32,
 }

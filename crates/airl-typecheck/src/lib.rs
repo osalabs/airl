@@ -5,6 +5,29 @@
 //! - Checks effect declarations cover actual effects
 //! - Validates function call signatures
 //! - Ensures control flow type consistency
+//!
+//! # Example
+//!
+//! ```
+//! use airl_typecheck::typecheck;
+//! use airl_ir::Module;
+//!
+//! let json = r#"{
+//!     "format_version":"0.1.0",
+//!     "module":{"id":"m","name":"main",
+//!         "metadata":{"version":"1","description":"","author":"","created_at":""},
+//!         "imports":[],"exports":[],"types":[],
+//!         "functions":[{
+//!             "id":"f","name":"main","params":[],"returns":"Unit","effects":["IO"],
+//!             "body":{"id":"n1","kind":"Literal","type":"Unit","value":null}
+//!         }]}
+//! }"#;
+//! let module: Module = serde_json::from_str(json).unwrap();
+//! let result = typecheck(&module);
+//! assert!(result.is_ok());
+//! ```
+
+#![warn(missing_docs)]
 
 use airl_ir::effects::Effect;
 use airl_ir::node::{BinOpKind, LiteralValue, Node, UnaryOpKind};
@@ -20,15 +43,20 @@ use thiserror::Error;
 /// Severity of a diagnostic.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Severity {
+    /// A type or effect error that must be fixed.
     Error,
+    /// A potential issue that doesn't prevent type checking from succeeding.
     Warning,
 }
 
 /// A type checking diagnostic.
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
+    /// Error or warning.
     pub severity: Severity,
+    /// The IR node where the issue was detected, if applicable.
     pub node_id: Option<String>,
+    /// Human-readable description of the issue.
     pub message: String,
     /// Optional function context (which function contains the error).
     pub function_context: Option<String>,
@@ -63,6 +91,7 @@ impl std::fmt::Display for Diagnostic {
 /// Errors from the type checking pass.
 #[derive(Debug, Error)]
 pub struct TypeCheckError {
+    /// All diagnostics produced (both errors and warnings).
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -77,13 +106,18 @@ impl std::fmt::Display for TypeCheckError {
 }
 
 /// Result of type checking.
+///
+/// Use [`TypeCheckResult::is_ok`] to check if type checking succeeded.
 #[derive(Debug)]
 pub struct TypeCheckResult {
+    /// Type or effect errors (severity [`Severity::Error`]).
     pub errors: Vec<Diagnostic>,
+    /// Non-blocking warnings (severity [`Severity::Warning`]).
     pub warnings: Vec<Diagnostic>,
 }
 
 impl TypeCheckResult {
+    /// Returns `true` if no type errors were found.
     pub fn is_ok(&self) -> bool {
         self.errors.is_empty()
     }

@@ -79,7 +79,7 @@ enum ApiAction {
         #[arg(short, long, default_value = "9090")]
         port: u16,
         /// API tokens for authentication (comma-separated). If set, all requests
-        /// require Authorization: Bearer <token> header.
+        /// require `Authorization: Bearer <token>` header.
         #[arg(long)]
         auth_tokens: Option<String>,
     },

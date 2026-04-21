@@ -3,6 +3,37 @@
 //! Evaluates IR graphs directly for fast feedback during development.
 //! Supports all node types, user-defined function calls with recursion,
 //! and configurable execution limits.
+//!
+//! # Example
+//!
+//! ```
+//! use airl_interp::interpret;
+//! use airl_ir::Module;
+//!
+//! let json = r#"{
+//!     "format_version":"0.1.0",
+//!     "module":{"id":"m","name":"main",
+//!         "metadata":{"version":"1","description":"","author":"","created_at":""},
+//!         "imports":[],"exports":[],"types":[],
+//!         "functions":[{
+//!             "id":"f","name":"main","params":[],"returns":"Unit","effects":["IO"],
+//!             "body":{"id":"n1","kind":"Call","type":"Unit","target":"std::io::println",
+//!                 "args":[{"id":"n2","kind":"Literal","type":"String","value":"hello"}]}
+//!         }]}
+//! }"#;
+//! let module: Module = serde_json::from_str(json).unwrap();
+//! let output = interpret(&module).unwrap();
+//! assert_eq!(output.stdout, "hello\n");
+//! ```
+//!
+//! # Builtins
+//!
+//! The interpreter ships with 74 builtin functions across 15 modules
+//! (`std::io`, `std::string`, `std::math`, `std::array`, `std::json`,
+//! `std::collections`, `std::process`, `std::time`, `std::crypto`,
+//! `std::testing`, `std::net`, `std::concurrency`, etc.).
+
+#![warn(missing_docs)]
 
 use airl_ir::node::{BinOpKind, LiteralValue, Node, Pattern, UnaryOpKind};
 use airl_ir::Module;
@@ -40,30 +71,59 @@ fn take_thread_result(id: i64) -> Option<Value> {
 /// Errors that can occur during interpretation.
 #[derive(Debug, Error)]
 pub enum InterpreterError {
+    /// No function named `main` was found in the module.
     #[error("no 'main' function found")]
     NoMainFunction,
+    /// A call to a function that isn't declared or a builtin.
     #[error("unknown function: {0}")]
     UnknownFunction(String),
+    /// A runtime type mismatch was encountered.
     #[error("type error at node {node_id}: {message}")]
-    TypeError { node_id: String, message: String },
+    TypeError {
+        /// ID of the node where the error occurred.
+        node_id: String,
+        /// Human-readable explanation.
+        message: String,
+    },
+    /// Encountered a node type the interpreter doesn't handle.
     #[error("unsupported node at {node_id}: {kind}")]
-    Unsupported { node_id: String, kind: String },
+    Unsupported {
+        /// ID of the offending node.
+        node_id: String,
+        /// Node kind that isn't supported.
+        kind: String,
+    },
+    /// Integer division or modulo by zero.
     #[error("division by zero at node {0}")]
     DivisionByZero(String),
+    /// The configured step limit was exceeded.
     #[error("step limit exceeded ({0} steps)")]
     StepLimitExceeded(u64),
+    /// The configured call-stack depth was exceeded.
     #[error("call depth limit exceeded ({0} frames)")]
     CallDepthExceeded(u32),
+    /// A `match` expression had no arm matching the scrutinee value.
     #[error("no matching arm in match at node {0}")]
     NoMatchingArm(String),
+    /// Array index was out of bounds.
     #[error("index out of bounds at node {node_id}: index {index}, length {length}")]
     IndexOutOfBounds {
+        /// ID of the node where indexing failed.
         node_id: String,
+        /// The requested index.
         index: i64,
+        /// The array length.
         length: usize,
     },
+    /// A struct field access referenced a non-existent field.
     #[error("field not found at node {node_id}: {field}")]
-    FieldNotFound { node_id: String, field: String },
+    FieldNotFound {
+        /// ID of the node where field access failed.
+        node_id: String,
+        /// The requested field name.
+        field: String,
+    },
+    /// Internal signal used to break out of a `Loop`.
     #[error("break from loop")]
     LoopBreak(Value),
 }
@@ -71,14 +131,18 @@ pub enum InterpreterError {
 /// The result of interpreting a program.
 #[derive(Debug, Clone)]
 pub struct InterpreterOutput {
+    /// Captured standard output (whatever was written via `println`/`print`).
     pub stdout: String,
+    /// Process-style exit code (0 = success).
     pub exit_code: i32,
 }
 
-/// Configurable execution limits.
+/// Configurable execution limits for safe execution of untrusted programs.
 #[derive(Debug, Clone)]
 pub struct ExecutionLimits {
+    /// Maximum number of evaluation steps before aborting.
     pub max_steps: u64,
+    /// Maximum call-stack depth.
     pub max_call_depth: u32,
 }
 
@@ -94,13 +158,21 @@ impl Default for ExecutionLimits {
 /// Runtime values during interpretation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    /// Signed 64-bit integer.
     Integer(i64),
+    /// 64-bit floating-point number.
     Float(f64),
+    /// Boolean value.
     Boolean(bool),
+    /// UTF-8 string.
     Str(String),
+    /// The unit value `()`. Also used as the "no value" sentinel for errors.
     Unit,
+    /// Heterogeneous array of values.
     Array(Vec<Value>),
+    /// Struct value with named fields (sorted).
     Struct(BTreeMap<String, Value>),
+    /// HashMap-like mapping from string keys to values.
     Map(BTreeMap<String, Value>),
 }
 

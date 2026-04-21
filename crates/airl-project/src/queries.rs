@@ -15,12 +15,15 @@ use std::collections::{HashMap, HashSet};
 /// A dead-code report: functions unreachable from an entry point.
 #[derive(Clone, Debug, Serialize)]
 pub struct DeadCodeReport {
+    /// The function name used as the reachability root.
     pub entry_point: String,
+    /// Functions reachable from `entry_point` via the static call graph, sorted.
     pub reachable: Vec<String>,
+    /// Functions declared in the module but not reachable from `entry_point`, sorted.
     pub dead: Vec<String>,
 }
 
-/// Builtin usage statistics.
+/// Builtin usage statistics across a module.
 #[derive(Clone, Debug, Serialize)]
 pub struct BuiltinUsage {
     /// Map from builtin name to how many times it's called across the module.
@@ -32,8 +35,11 @@ pub struct BuiltinUsage {
 /// Effect surface: the set of effects actually used across all functions.
 #[derive(Clone, Debug, Serialize)]
 pub struct EffectSurface {
+    /// All effect names declared anywhere in the module, sorted.
     pub effects: Vec<String>,
+    /// Names of functions declaring the `IO` effect, sorted.
     pub io_functions: Vec<String>,
+    /// Names of functions that are pure (no effects or only `Pure`), sorted.
     pub pure_functions: Vec<String>,
 }
 

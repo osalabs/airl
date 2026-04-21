@@ -2,7 +2,17 @@
 //!
 //! Manages the lifecycle of an AIRL project: creating from IR,
 //! applying patches with undo history, querying functions/types,
-//! constraint checking, and text projections.
+//! constraint checking, text projections, and multi-module workspaces.
+//!
+//! # Modules
+//!
+//! - [`constraints`] — enforce architectural invariants (complexity, purity, forbidden calls)
+//! - [`diff`] — compare two modules semantically
+//! - [`projection`] — render IR as TypeScript or Python source
+//! - [`queries`] — richer analyses: dead code, builtin usage, effect surface
+//! - [`workspace`] — load and link multiple modules
+
+#![warn(missing_docs)]
 
 pub mod constraints;
 pub mod diff;
@@ -18,64 +28,95 @@ use airl_typecheck::{self, TypeCheckResult};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// Project-level errors.
+/// Errors arising from [`Project`] operations.
 #[derive(Debug, Error)]
 pub enum ProjectError {
+    /// No module has been loaded into the project.
     #[error("no module loaded")]
     NoModule,
+    /// A semantic patch failed to apply.
     #[error("patch error: {0}")]
     PatchError(#[from] airl_patch::PatchError),
+    /// `undo_last` was called on an empty history.
     #[error("no patches to undo")]
     NothingToUndo,
+    /// JSON serialization or deserialization failed.
     #[error("JSON error: {0}")]
     JsonError(#[from] serde_json::Error),
 }
 
 /// A history entry tracking an applied patch and its inverse.
+///
+/// Stored on the [`Project`] so `undo_last` can reverse the last patch exactly.
 #[derive(Clone, Debug)]
 pub struct HistoryEntry {
+    /// The module version hash before the patch was applied.
     pub previous_version: String,
+    /// The patch that was applied.
     pub patch: Patch,
+    /// The inverse patch computed before application.
     pub inverse: Patch,
 }
 
-/// Summary of a function in the module.
+/// Summary of a function in the module, suitable for API responses.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FuncSummary {
+    /// Function ID (unique within the module).
     pub id: String,
+    /// Function name.
     pub name: String,
+    /// List of parameter summaries.
     pub params: Vec<ParamSummary>,
+    /// Return type as a string.
     pub returns: String,
+    /// Declared effects as strings.
     pub effects: Vec<String>,
+    /// Number of IR nodes in the function body.
     pub node_count: usize,
 }
 
-/// Summary of a function parameter.
+/// Summary of a function parameter, suitable for API responses.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ParamSummary {
+    /// Parameter name.
     pub name: String,
+    /// Parameter type as a string.
     pub param_type: String,
 }
 
-/// An edge in a call graph.
+/// An edge in a static call graph: `from` calls `to`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CallEdge {
+    /// Name of the calling function.
     pub from: String,
+    /// Name of the target function (user-defined or builtin).
     pub to: String,
 }
 
-/// Effect summary for a function.
+/// Effect summary for a single function.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EffectSummary {
+    /// Function name.
     pub func_name: String,
+    /// Declared effects as strings.
     pub declared_effects: Vec<String>,
 }
 
 /// An AIRL project holding module state, history, and metadata.
+///
+/// The `Project` is the high-level unit of work for the API. It wraps a
+/// [`Module`] with:
+/// - Content-addressable versioning (updated on each patch)
+/// - Patch history with exact undo
+/// - Convenience methods for typechecking, queries, projections, constraints
 pub struct Project {
+    /// Project name (user-provided).
     pub name: String,
+    /// The current module state.
     pub module: Module,
+    /// Content-addressed version hash of the current module.
     pub version: String,
+    /// Stack of applied patches and their inverses (for undo).
     pub history: Vec<HistoryEntry>,
 }
 
@@ -219,19 +260,25 @@ impl Project {
     }
 }
 
-/// Result of applying a patch.
+/// Result of successfully applying a patch via [`Project::apply_patch`].
 #[derive(Clone, Debug, Serialize)]
 pub struct PatchApplyResult {
+    /// The new content-addressed version hash after the patch.
     pub new_version: String,
+    /// Which functions/modules were affected by the patch.
     pub impact: Impact,
 }
 
-/// Result of previewing a patch.
+/// Result of previewing a patch via [`Project::preview_patch`].
 #[derive(Clone, Debug, Serialize)]
 pub struct PatchPreviewResult {
+    /// True if the patch would succeed (validation passes and types check).
     pub would_succeed: bool,
+    /// Validation error message if the patch cannot be applied structurally.
     pub validation_error: Option<String>,
+    /// Type errors that would arise after applying the patch.
     pub type_errors: Vec<String>,
+    /// Which functions/modules would be affected.
     pub impact: Impact,
 }
 
