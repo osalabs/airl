@@ -94,21 +94,20 @@ async function main() {
   console.log(`  stdout: ${(resp.stdout || "").trim()}`);
 
   section("4. Apply semantic patch");
+  // The server flattens the patch at the body root (no { patch: ... } wrapper)
   [status, resp] = await apiCall("POST", "/patch/apply", {
-    patch: {
-      id: "p_change_greeting",
-      parent_version: "",
-      operations: [{
-        kind: "ReplaceNode",
-        target: "n_2",
-        replacement: {
-          id: "n_2", kind: "Literal", type: "String",
-          value: "GREETINGS FROM THE JS AGENT!",
-        },
-      }],
-      rationale: "Excited greeting",
-      author: "agent-harness-js",
-    },
+    id: "p_change_greeting",
+    parent_version: "",
+    operations: [{
+      kind: "ReplaceNode",
+      target: "n_2",
+      replacement: {
+        id: "n_2", kind: "Literal", type: "String",
+        value: "GREETINGS FROM THE JS AGENT!",
+      },
+    }],
+    rationale: "Excited greeting",
+    author: "agent-harness-js",
   });
   console.log(`  success=${resp.success}  new_version=${(resp.new_version || "").slice(0, 12)}`);
 

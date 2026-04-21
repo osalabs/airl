@@ -8,6 +8,7 @@ members = [
     "crates/airl-project",
     "crates/airl-cli",
     "crates/airl-api",
+    "crates/airl-sdk",
 ]
 resolver = "2"
 
@@ -38,3 +39,4 @@ airl-compile = { path = "crates/airl-compile", version = "0.1.0" }
 airl-patch = { path = "crates/airl-patch", version = "0.1.0" }
 airl-project = { path = "crates/airl-project", version = "0.1.0" }
 airl-api = { path = "crates/airl-api", version = "0.1.0" }
+airl-sdk = { path = "crates/airl-sdk", version = "0.1.0" }

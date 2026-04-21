@@ -84,9 +84,29 @@ cargo run -p airl-cli -- api serve --port 9090
 # Start with authentication
 cargo run -p airl-cli -- api serve --port 9090 --auth-tokens my-secret-token
 
-# Run all tests (238 tests)
+# Run all tests (248 tests)
 cargo test --workspace
+
+# Generate shell completions (bash/zsh/fish/powershell/elvish)
+airl completions bash > /etc/bash_completion.d/airl
+airl completions fish > ~/.config/fish/completions/airl.fish
 ```
+
+## Rust SDK
+
+The `airl-sdk` crate provides a typed client for the HTTP API:
+
+```rust
+use airl_sdk::Client;
+
+let client = Client::new("http://127.0.0.1:9090");
+let info = client.create_project("my-app", &module_json)?;
+let output = client.interpret_default()?;
+println!("{}", output.stdout);
+```
+
+See [`crates/airl-sdk/examples/agent_workflow.rs`](crates/airl-sdk/examples/agent_workflow.rs)
+for a complete agent workflow demo.
 
 ## Examples (13 programs + 2 agent harnesses)
 

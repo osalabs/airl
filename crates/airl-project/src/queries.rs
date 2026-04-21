@@ -9,11 +9,11 @@
 
 use airl_ir::module::Module;
 use airl_ir::node::Node;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 /// A dead-code report: functions unreachable from an entry point.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DeadCodeReport {
     /// The function name used as the reachability root.
     pub entry_point: String,
@@ -24,7 +24,7 @@ pub struct DeadCodeReport {
 }
 
 /// Builtin usage statistics across a module.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BuiltinUsage {
     /// Map from builtin name to how many times it's called across the module.
     pub counts: HashMap<String, u32>,
@@ -33,7 +33,7 @@ pub struct BuiltinUsage {
 }
 
 /// Effect surface: the set of effects actually used across all functions.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EffectSurface {
     /// All effect names declared anywhere in the module, sorted.
     pub effects: Vec<String>,

@@ -1,5 +1,5 @@
 [package]
-name = "airl-cli"
+name = "airl-sdk"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,21 +8,17 @@ homepage.workspace = true
 authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Command-line interface for AIRL: run, compile, type-check, patch, REPL, HTTP API"
-
-[[bin]]
-name = "airl"
-path = "src/main.rs"
+description = "Typed Rust client for the AIRL HTTP API (create projects, apply patches, typecheck, interpret, compile, query)"
 
 [dependencies]
 airl-ir = { workspace = true }
-airl-interp = { workspace = true }
-airl-typecheck = { workspace = true }
-airl-compile = { workspace = true }
 airl-patch = { workspace = true }
-airl-api = { workspace = true }
 airl-project = { workspace = true }
-clap = { workspace = true }
-clap_complete = "4"
+serde = { workspace = true }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
+ureq = { version = "2", default-features = false }
+
+[dev-dependencies]
+airl-api = { workspace = true }
 tokio = { workspace = true }

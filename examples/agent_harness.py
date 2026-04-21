@@ -112,21 +112,20 @@ def main():
     print(f"  stdout: {resp.get('stdout', '').strip()}")
 
     section("4. Apply semantic patch (change the greeting)")
+    # The server flattens the patch at the body root (no `{"patch": ...}` wrapper)
     patch = {
-        "patch": {
-            "id": "p_change_greeting",
-            "parent_version": "",
-            "operations": [{
-                "kind": "ReplaceNode",
-                "target": "n_2",
-                "replacement": {
-                    "id": "n_2", "kind": "Literal", "type": "String",
-                    "value": "GREETINGS FROM THE PATCHED AGENT!"
-                },
-            }],
-            "rationale": "Excited greeting",
-            "author": "agent-harness-py",
-        }
+        "id": "p_change_greeting",
+        "parent_version": "",
+        "operations": [{
+            "kind": "ReplaceNode",
+            "target": "n_2",
+            "replacement": {
+                "id": "n_2", "kind": "Literal", "type": "String",
+                "value": "GREETINGS FROM THE PATCHED AGENT!"
+            },
+        }],
+        "rationale": "Excited greeting",
+        "author": "agent-harness-py",
     }
     status, resp = api_call("POST", "/patch/apply", patch)
     print(f"  success={resp.get('success')}  new_version={resp.get('new_version','')[:12]}")

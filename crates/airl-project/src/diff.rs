@@ -7,14 +7,14 @@
 //! - Body structural changes (node count delta)
 
 use airl_ir::module::{FuncDef, Module};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 /// A semantic diff between two modules.
 ///
 /// Produced by [`diff`]. Use [`ModuleDiff::is_empty`] to check for any changes
 /// and [`ModuleDiff::summary`] for a short human-readable overview.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModuleDiff {
     /// Names of functions present in `new` but not `old`.
     pub added_functions: Vec<String>,
@@ -29,7 +29,7 @@ pub struct ModuleDiff {
 }
 
 /// A function-level diff showing what changed between two versions.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FunctionDiff {
     /// Function name (same in both versions).
     pub name: String,

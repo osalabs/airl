@@ -61,7 +61,7 @@ pub enum Constraint {
 }
 
 /// A single constraint violation, produced by [`check_constraint`] or [`check_all`].
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ConstraintViolation {
     /// Display form of the constraint that was violated, e.g. `"MaxFunctionCount(5)"`.
     pub constraint: String,
@@ -74,7 +74,7 @@ pub struct ConstraintViolation {
 /// Result of checking all constraints against a module.
 ///
 /// Use [`ConstraintReport::is_ok`] to check if all constraints passed.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ConstraintReport {
     /// All violations found, in the order constraints were checked.
     pub violations: Vec<ConstraintViolation>,

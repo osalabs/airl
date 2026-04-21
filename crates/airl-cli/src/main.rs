@@ -1,6 +1,7 @@
 //! AIRL CLI - Command-line interface for the AIRL toolchain.
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::Shell;
 use std::path::PathBuf;
 use std::process;
 
@@ -69,6 +70,24 @@ enum Commands {
         #[command(subcommand)]
         action: ApiAction,
     },
+    /// Generate shell completions (prints to stdout)
+    ///
+    /// Example:
+    ///   # Bash: write to system completions dir
+    ///   airl completions bash > /etc/bash_completion.d/airl
+    ///
+    ///   # Zsh: write to a directory on fpath
+    ///   airl completions zsh > ~/.zsh/completions/_airl
+    ///
+    ///   # Fish:
+    ///   airl completions fish > ~/.config/fish/completions/airl.fish
+    ///
+    ///   # PowerShell:
+    ///   airl completions powershell >> $PROFILE
+    Completions {
+        /// Shell to generate completions for (bash, zsh, fish, powershell, elvish)
+        shell: Shell,
+    },
 }
 
 #[derive(Subcommand)]
@@ -136,6 +155,11 @@ async fn main() {
                 }
             }
         },
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            let name = cmd.get_name().to_string();
+            clap_complete::generate(shell, &mut cmd, name, &mut std::io::stdout());
+        }
     }
 }
 
