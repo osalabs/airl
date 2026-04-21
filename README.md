@@ -84,11 +84,11 @@ cargo run -p airl-cli -- api serve --port 9090
 # Start with authentication
 cargo run -p airl-cli -- api serve --port 9090 --auth-tokens my-secret-token
 
-# Run all tests (215 tests)
+# Run all tests (238 tests)
 cargo test --workspace
 ```
 
-## Examples (10 programs)
+## Examples (13 programs + 2 agent harnesses)
 
 | Example | Description |
 |---|---|
@@ -99,6 +99,29 @@ cargo test --workspace
 | `file_search.airl.json` | List directory, check file existence |
 | `json_processor.airl.json` | Parse JSON, transform, pretty-print |
 | `kv_store.airl.json` | HashMap operations (insert, get, keys) |
+| `web_server.airl.json` | Minimal HTTP server with one-shot request handling |
+| `self_test.airl.json` | Test framework: assert_eq / assert_ne across builtins |
+| `concurrency.airl.json` | Thread spawn + await demo |
+| `http_client.airl.json` | HTTP GET request example |
+| `multi/main.airl.json` + `multi/mathlib.airl.json` | Multi-module program with imports |
+| `agent_harness.py` | Python script showing 10-step agent workflow against the HTTP API |
+| `agent_harness.js` | Node.js equivalent of the Python harness |
+
+### Agent harness demo
+
+Shows what an AI coding agent's workflow looks like against the AIRL API
+(create project → typecheck → interpret → apply patch → project to TypeScript →
+query dead code → check constraints → undo):
+
+```bash
+# Terminal 1
+cargo run -p airl-cli -- api serve --port 9090
+
+# Terminal 2
+python3 examples/agent_harness.py
+# or
+node examples/agent_harness.js
+```
 | `http_client.airl.json` | HTTP GET request with response parsing |
 | `self_test.airl.json` | Self-test using the testing framework |
 | `change-greeting.patch.json` | Example semantic patch |

@@ -12,7 +12,7 @@
 //! - [`queries`] — richer analyses: dead code, builtin usage, effect surface
 //! - [`workspace`] — load and link multiple modules
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 pub mod constraints;
 pub mod diff;

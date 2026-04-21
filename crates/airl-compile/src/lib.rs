@@ -25,7 +25,7 @@
 //! std::fs::write("out.wasm", &bytes).unwrap();
 //! ```
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 mod lower;
 pub mod wasm;

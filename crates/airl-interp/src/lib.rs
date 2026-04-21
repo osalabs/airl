@@ -33,7 +33,7 @@
 //! `std::collections`, `std::process`, `std::time`, `std::crypto`,
 //! `std::testing`, `std::net`, `std::concurrency`, etc.).
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 use airl_ir::node::{BinOpKind, LiteralValue, Node, Pattern, UnaryOpKind};
 use airl_ir::Module;

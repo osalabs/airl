@@ -23,7 +23,7 @@
 //! - [`traverse`] — IR tree walking helpers
 //! - [`impact`] — analysis of which functions a patch affects
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 pub mod apply;
 pub mod impact;

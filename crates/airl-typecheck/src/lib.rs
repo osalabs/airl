@@ -27,7 +27,7 @@
 //! assert!(result.is_ok());
 //! ```
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 use airl_ir::effects::Effect;
 use airl_ir::node::{BinOpKind, LiteralValue, Node, UnaryOpKind};

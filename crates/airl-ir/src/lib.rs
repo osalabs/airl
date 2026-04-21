@@ -32,7 +32,7 @@
 //! - [`display`] — pretty-printing for debugging
 //! - [`symbol`] — symbol interning helpers
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 /// Pretty-printers and `Display` impls for IR nodes.
 pub mod display;

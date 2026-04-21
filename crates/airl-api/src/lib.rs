@@ -8,7 +8,7 @@
 //!
 //! Start the server with [`serve`] or use [`build_test_router`] for testing.
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 /// Token-based authentication middleware for the API.
 pub mod auth;
