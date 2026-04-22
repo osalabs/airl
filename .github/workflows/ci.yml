@@ -49,6 +49,24 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
+      # airl-benches is excluded from the main workspace (see root Cargo.toml)
+      # because criterion's transitive windows-sys dep breaks Windows-GNU hosts.
+      # On Linux it builds cleanly — verify the benches compile so they can't
+      # bit-rot silently, but don't actually run them (CI isn't the place for
+      # perf measurement).
+      - name: Build benches (compile-check only)
+        run: cargo bench --manifest-path crates/airl-benches/Cargo.toml --no-run
+
+      - name: Test airl new scaffold end-to-end
+        run: |
+          cargo run -p airl-cli -- new scaffold-test --path /tmp
+          test -f /tmp/scaffold-test/main.airl.json
+          test -f /tmp/scaffold-test/README.md
+          test -f /tmp/scaffold-test/.gitignore
+          cargo run -p airl-cli -- check /tmp/scaffold-test/main.airl.json
+          output=$(cargo run -p airl-cli --quiet -- run /tmp/scaffold-test/main.airl.json)
+          test "$output" = "Hello from scaffold-test!"
+
       - name: Run examples (interpreter)
         run: |
           cargo run -p airl-cli -- run examples/hello.airl.json

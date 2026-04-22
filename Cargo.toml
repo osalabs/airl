@@ -10,6 +10,11 @@ members = [
     "crates/airl-api",
     "crates/airl-sdk",
 ]
+# airl-benches is intentionally excluded from default workspace builds because
+# criterion pulls in windows-sys (needs GCC dlltool) which breaks local
+# Windows-GNU developer setups. CI and Unix systems build it on demand via
+# `cargo bench --manifest-path crates/airl-benches/Cargo.toml`.
+exclude = ["crates/airl-benches"]
 resolver = "2"
 
 [workspace.package]

@@ -88,6 +88,27 @@ enum Commands {
         /// Shell to generate completions for (bash, zsh, fish, powershell, elvish)
         shell: Shell,
     },
+    /// Scaffold a new AIRL project (skeleton main.airl.json + README + .gitignore)
+    ///
+    /// Creates a new directory with:
+    ///   - `<name>/main.airl.json` — a hello-world module
+    ///   - `<name>/README.md` — project readme
+    ///   - `<name>/.gitignore` — ignore build artifacts
+    ///
+    /// Example:
+    ///   airl new my-agent-project
+    ///   cd my-agent-project
+    ///   airl run main.airl.json
+    New {
+        /// Name of the new project (becomes the directory name and module name)
+        name: String,
+        /// Parent directory to create the project in (default: current directory)
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Overwrite if the target directory already exists
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -160,6 +181,7 @@ async fn main() {
             let name = cmd.get_name().to_string();
             clap_complete::generate(shell, &mut cmd, name, &mut std::io::stdout());
         }
+        Commands::New { name, path, force } => cmd_new(&name, &path, force),
     }
 }
 
@@ -558,5 +580,256 @@ fn cmd_patch(module_file: &PathBuf, patch_file: &PathBuf, output: Option<&std::p
             eprintln!("patch error: {e}");
             process::exit(1);
         }
+    }
+}
+
+/// Validate that a proposed project name is usable as a directory and module name.
+/// Returns an error message string on rejection, or Ok on success.
+fn validate_project_name(name: &str) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("project name cannot be empty".to_string());
+    }
+    // Must start with a letter or underscore
+    let first = name.chars().next().unwrap();
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        return Err(format!(
+            "project name must start with a letter or '_' (got '{first}')"
+        ));
+    }
+    // Rest can include letters, digits, `-`, `_`
+    for c in name.chars() {
+        if !(c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            return Err(format!(
+                "project name contains invalid character '{c}' (allowed: a-z, A-Z, 0-9, '-', '_')"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Produce the scaffolded `main.airl.json` for a new project.
+fn scaffold_module_json(module_name: &str) -> String {
+    format!(
+        r#"{{
+  "format_version": "0.1.0",
+  "module": {{
+    "id": "mod_{module_name}",
+    "name": "{module_name}",
+    "metadata": {{
+      "version": "0.1.0",
+      "description": "A new AIRL project",
+      "author": "",
+      "created_at": ""
+    }},
+    "imports": [
+      {{ "module": "std::io", "items": ["println"] }}
+    ],
+    "exports": [
+      {{ "kind": "Function", "name": "main" }}
+    ],
+    "types": [],
+    "functions": [
+      {{
+        "id": "f_main",
+        "name": "main",
+        "params": [],
+        "returns": "Unit",
+        "effects": ["IO"],
+        "body": {{
+          "id": "n_1",
+          "kind": "Call",
+          "type": "Unit",
+          "target": "std::io::println",
+          "args": [
+            {{
+              "id": "n_2",
+              "kind": "Literal",
+              "type": "String",
+              "value": "Hello from {module_name}!"
+            }}
+          ]
+        }}
+      }}
+    ]
+  }}
+}}
+"#
+    )
+}
+
+/// Produce the scaffolded README.md for a new project.
+fn scaffold_readme(name: &str) -> String {
+    format!(
+        "# {name}\n\
+         \n\
+         A new AIRL (AI-native IR Language) project.\n\
+         \n\
+         ## Run\n\
+         \n\
+         ```sh\n\
+         # Interpret\n\
+         airl run main.airl.json\n\
+         \n\
+         # Type check only\n\
+         airl check main.airl.json\n\
+         \n\
+         # Compile via Cranelift JIT\n\
+         airl run main.airl.json --compiled\n\
+         \n\
+         # Compile to WASM\n\
+         airl compile main.airl.json --target wasm -o out.wasm\n\
+         \n\
+         # Project to TypeScript or Python\n\
+         airl project main.airl.json --lang typescript\n\
+         airl project main.airl.json --lang python\n\
+         ```\n\
+         \n\
+         ## Structure\n\
+         \n\
+         - `main.airl.json` — the AIRL IR module (the source of truth)\n\
+         \n\
+         Edit the IR directly, or use an agent via the HTTP API:\n\
+         \n\
+         ```sh\n\
+         airl api serve --port 9090\n\
+         # then POST patches to /patch/apply, etc.\n\
+         ```\n"
+    )
+}
+
+/// Produce the scaffolded .gitignore for a new project.
+fn scaffold_gitignore() -> &'static str {
+    "# Build artifacts\n\
+     *.wasm\n\
+     *.o\n\
+     target/\n\
+     \n\
+     # Editor files\n\
+     .vscode/\n\
+     .idea/\n\
+     *.swp\n\
+     \n\
+     # OS\n\
+     .DS_Store\n\
+     Thumbs.db\n"
+}
+
+fn cmd_new(name: &str, parent_dir: &std::path::Path, force: bool) {
+    // Validate project name
+    if let Err(e) = validate_project_name(name) {
+        eprintln!("error: {e}");
+        process::exit(1);
+    }
+
+    let project_dir = parent_dir.join(name);
+
+    // Check if directory exists. With --force, we proceed (overwriting files).
+    if project_dir.exists() && !force {
+        eprintln!(
+            "error: {} already exists (use --force to overwrite)",
+            project_dir.display()
+        );
+        process::exit(1);
+    }
+
+    // Create the directory
+    if let Err(e) = std::fs::create_dir_all(&project_dir) {
+        eprintln!(
+            "error: cannot create directory {}: {e}",
+            project_dir.display()
+        );
+        process::exit(1);
+    }
+
+    // Write main.airl.json
+    let main_path = project_dir.join("main.airl.json");
+    if let Err(e) = std::fs::write(&main_path, scaffold_module_json(name)) {
+        eprintln!("error: cannot write {}: {e}", main_path.display());
+        process::exit(1);
+    }
+
+    // Write README.md
+    let readme_path = project_dir.join("README.md");
+    if let Err(e) = std::fs::write(&readme_path, scaffold_readme(name)) {
+        eprintln!("error: cannot write {}: {e}", readme_path.display());
+        process::exit(1);
+    }
+
+    // Write .gitignore
+    let gitignore_path = project_dir.join(".gitignore");
+    if let Err(e) = std::fs::write(&gitignore_path, scaffold_gitignore()) {
+        eprintln!("error: cannot write {}: {e}", gitignore_path.display());
+        process::exit(1);
+    }
+
+    println!("Created new AIRL project at {}", project_dir.display());
+    println!("  {}", main_path.display());
+    println!("  {}", readme_path.display());
+    println!("  {}", gitignore_path.display());
+    println!();
+    println!("Next steps:");
+    println!("  cd {name}");
+    println!("  airl run main.airl.json");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_project_name_ok() {
+        assert!(validate_project_name("my-app").is_ok());
+        assert!(validate_project_name("my_app").is_ok());
+        assert!(validate_project_name("MyApp").is_ok());
+        assert!(validate_project_name("app1").is_ok());
+        assert!(validate_project_name("_leading").is_ok());
+        assert!(validate_project_name("a").is_ok());
+    }
+
+    #[test]
+    fn test_validate_project_name_rejects() {
+        assert!(validate_project_name("").is_err());
+        assert!(validate_project_name("1app").is_err()); // leading digit
+        assert!(validate_project_name("-app").is_err()); // leading dash
+        assert!(validate_project_name("my app").is_err()); // space
+        assert!(validate_project_name("my/app").is_err()); // slash
+        assert!(validate_project_name("my.app").is_err()); // dot
+    }
+
+    #[test]
+    fn test_scaffold_module_json_valid_ir() {
+        let json = scaffold_module_json("hello");
+        // Should parse as a valid Module
+        let module: airl_ir::Module = serde_json::from_str(&json).unwrap();
+        assert_eq!(module.name(), "hello");
+        assert!(module.find_function("main").is_some());
+    }
+
+    #[test]
+    fn test_scaffold_module_json_typechecks() {
+        let json = scaffold_module_json("demo");
+        let module: airl_ir::Module = serde_json::from_str(&json).unwrap();
+        let result = airl_typecheck::typecheck(&module);
+        assert!(
+            result.is_ok(),
+            "scaffold should typecheck: {:?}",
+            result.errors.iter().map(|e| &e.message).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_scaffold_module_runs() {
+        // The scaffolded module should actually execute and print the greeting.
+        let json = scaffold_module_json("test-app");
+        let module: airl_ir::Module = serde_json::from_str(&json).unwrap();
+        let output = airl_interp::interpret(&module).unwrap();
+        assert_eq!(output.stdout, "Hello from test-app!\n");
+    }
+
+    #[test]
+    fn test_scaffold_readme_mentions_name() {
+        let readme = scaffold_readme("my-project");
+        assert!(readme.contains("my-project"));
+        assert!(readme.contains("airl run main.airl.json"));
     }
 }

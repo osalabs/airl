@@ -1,0 +1,51 @@
+[package]
+name = "airl-benches"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Criterion benchmarks for AIRL — excluded from the main workspace"
+publish = false
+
+# This crate is intentionally excluded from the workspace `members` list
+# (see repo-root Cargo.toml) because criterion's transitive windows-sys
+# dependency needs the GCC `dlltool` on Windows-GNU, which breaks normal
+# `cargo test` on that host. Run benches from the repo root with:
+#
+#   cargo bench --manifest-path crates/airl-benches/Cargo.toml
+#
+# Save a baseline and compare against it:
+#
+#   cargo bench --manifest-path crates/airl-benches/Cargo.toml -- --save-baseline main
+#   cargo bench --manifest-path crates/airl-benches/Cargo.toml -- --baseline main
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+airl-ir = { path = "../airl-ir", version = "0.1.0" }
+airl-typecheck = { path = "../airl-typecheck", version = "0.1.0" }
+airl-interp = { path = "../airl-interp", version = "0.1.0" }
+airl-compile = { path = "../airl-compile", version = "0.1.0" }
+serde_json = "1"
+
+[dev-dependencies]
+# Disable default features (html_reports + plotters) because plotters pulls
+# in windows-sys (needs GCC dlltool on Windows-gnu). The terminal output is
+# still informative; install `cargo-criterion` separately for richer reports.
+criterion = { version = "0.5", default-features = false }
+
+[[bench]]
+name = "interp_bench"
+harness = false
+
+[[bench]]
+name = "typecheck_bench"
+harness = false
+
+[[bench]]
+name = "ir_bench"
+harness = false
+
+[[bench]]
+name = "compile_bench"
+harness = false

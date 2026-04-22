@@ -54,6 +54,11 @@ AI Coding Agent
 # Build
 cargo build
 
+# Scaffold a new AIRL project
+airl new my-app
+cd my-app
+airl run main.airl.json  # -> "Hello from my-app!"
+
 # Run a program (interpreter)
 cargo run -p airl-cli -- run examples/hello.airl.json
 
@@ -84,8 +89,13 @@ cargo run -p airl-cli -- api serve --port 9090
 # Start with authentication
 cargo run -p airl-cli -- api serve --port 9090 --auth-tokens my-secret-token
 
-# Run all tests (248 tests)
+# Run all tests (254 tests)
 cargo test --workspace
+
+# Run criterion benchmarks (excluded from default workspace; invoke directly)
+cargo bench --manifest-path crates/airl-benches/Cargo.toml
+# Save a baseline to compare against later:
+cargo bench --manifest-path crates/airl-benches/Cargo.toml -- --save-baseline main
 
 # Generate shell completions (bash/zsh/fish/powershell/elvish)
 airl completions bash > /etc/bash_completion.d/airl
