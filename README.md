@@ -2,7 +2,26 @@
 
 **AI-native Intermediate Representation Language**
 
+[![CI](https://github.com/osalabs/airl/actions/workflows/ci.yml/badge.svg)](https://github.com/osalabs/airl/actions/workflows/ci.yml)
+[![crates.io airl-cli](https://img.shields.io/crates/v/airl-cli?label=airl-cli)](https://crates.io/crates/airl-cli)
+[![crates.io airl-sdk](https://img.shields.io/crates/v/airl-sdk?label=airl-sdk)](https://crates.io/crates/airl-sdk)
+[![docs.rs airl-ir](https://img.shields.io/docsrs/airl-ir?label=docs.rs%20airl-ir)](https://docs.rs/airl-ir)
+[![docs.rs airl-sdk](https://img.shields.io/docsrs/airl-sdk?label=docs.rs%20airl-sdk)](https://docs.rs/airl-sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 AIRL is a typed program graph designed as the primary authoring target for AI coding agents. Instead of generating text files, agents manipulate a structured IR through semantic patch operations. Human-readable code is an output projection, not the source of truth.
+
+## Install
+
+```sh
+# The CLI (scaffold projects, type-check, interpret, compile, run the API server)
+cargo install airl-cli
+
+# Or embed in your own Rust crate
+[dependencies]
+airl-ir = "0.1"       # IR data types
+airl-sdk = "0.1"      # HTTP client for the agent API
+```
 
 ## What AIRL Is
 
